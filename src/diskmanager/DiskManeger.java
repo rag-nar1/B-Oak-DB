@@ -1,51 +1,36 @@
 package diskmanager;
 
 import java.io.IOException;
+
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.io.Closeable;
 import java.util.concurrent.BlockingQueue;
 
 public class DiskManeger implements Closeable {
-    public class DiskRequest {
-        String fileName;
-        long pageID;
-        byte[] data;
-        boolean isWrite;
-        CompletableFuture<Boolean> finish;
-        public DiskRequest(String fileName, long pageID, byte[] data, boolean isWrite) {
-            this.fileName = fileName;
-            this.pageID = pageID;
-            this.data = data;
-            this.isWrite = isWrite;
-            this.finish = new CompletableFuture<Boolean>();
-        }
-
-    }
-
     
     private Map<String, DiskFile> files;
     private int fileCount;
     private BlockingQueue<DiskRequest> requestQueue;
-
+    private Thread mainThread;
     /**
      * defualt constructre
      * todo: make new constructors based on a config 
      */
-    public DiskManeger() {
-        this.files = new ConcurrentHashMap<>();
+    public DiskManeger() throws NullPointerException {
+        this.files = new ConcurrentHashMap<String, DiskFile>();
         this.fileCount = 0;
         this.requestQueue = new LinkedBlockingQueue<DiskRequest>(100); // capped to 100 requests
-        new Thread(() -> { // start the worker that would fetch the requests and start a thread for each
+        mainThread = new Thread(() -> { // start the worker that would fetch the requests and start a thread for each
             try {
                 run();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt(); // Restore interrupted status
                 e.printStackTrace(); // Log the exception
             }
-        }).start();
+        });
+        mainThread.start();
     }
 
     /**
@@ -54,7 +39,10 @@ public class DiskManeger implements Closeable {
      * @throws NullPointerException if the object used after calling the close method for the first time
      */
     public void close() throws NullPointerException {
-        requestQueue.clear();
+        mainThread.interrupt();
+        for (DiskRequest diskRequest : requestQueue) { // notify all that requests are not done
+            diskRequest.finish.complete(false);
+        }
         requestQueue = null;
         files.forEach((key, value) -> {
             try {
@@ -75,14 +63,15 @@ public class DiskManeger implements Closeable {
      * @throws NullPointerException if used after a close call
      */
     private void run() throws InterruptedException, NullPointerException{
-        close();
-        while(true) {
-            DiskRequest currentRequest = requestQueue.take();
-            new Thread(()-> {
-                DiskFile file = this.files.get(currentRequest.fileName);
-                if (file == null) {
-                    return;
-                }
+        while(!Thread.currentThread().isInterrupted()) {
+            try {
+                DiskRequest currentRequest = requestQueue.take();
+                new Thread(()-> {
+                    DiskFile file = this.files.get(currentRequest.fileName);
+                    if (file == null) {
+                        currentRequest.finish.complete(false);
+                        return;
+                    }
 
                 if (currentRequest.isWrite) {
                     try {
@@ -102,7 +91,11 @@ public class DiskManeger implements Closeable {
                     }
                 }
 
-            }).start();
+                }).start();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
     }
 
