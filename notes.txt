@@ -1,0 +1,5 @@
+to compile
+	javac -d bin $(find src -name "*.java") // will compile all in src
+
+to run
+	java -cp bin Main
