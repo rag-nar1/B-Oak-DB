@@ -83,7 +83,7 @@ public class Replacer {
      * in case if two frames tie with the INF 
      * we break the tie with who has the latest access and evict the other
      * also we skip any unevictable frames
-     * @return the frame to be evicted
+     * @return the frameid to be evicted if can not evict any returns -1
      */
     public int evict() {
         latch.lock();

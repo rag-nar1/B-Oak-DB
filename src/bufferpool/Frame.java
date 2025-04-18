@@ -8,19 +8,66 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class Frame {
 
     private int frameId;
-    private int pageId;
+    private long pageId;
+    private String fileName;
     private boolean dirty;
     private byte[] data;
     private AtomicInteger pinCount;
     private ReadWriteLock latch;
     private Lock lock;
 
-    public Frame(int frameId, int pageId, byte[] data) {
+    public Frame(){}
+    public Frame(int frameId){
         this.frameId = frameId;
-        this.pageId = frameId;
-        this.data = data;
+        this.data = new byte[4096];
         pinCount = new AtomicInteger();
         latch = new ReentrantReadWriteLock();
+    }
+    public Frame(int frameId, int pageId, String fileName) {
+        this.frameId = frameId;
+        this.pageId = pageId;
+        this.fileName = fileName;
+        this.data = new byte[4096];
+        pinCount = new AtomicInteger();
+        latch = new ReentrantReadWriteLock();
+    }
+
+    public void newFrame(long pageId, String fileName) {
+        this.pageId = pageId;
+        this.fileName = fileName;
+        pinCount = new AtomicInteger();
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public long getPageId() {
+        return pageId;
+    }
+
+    public byte[] getData() {
+        return data;
+    }
+
+    public boolean isDirty() {
+        return dirty;
+    }
+
+    public void setDirty(boolean dirty) {
+        this.dirty = dirty;
+    }
+
+    public int addPin() {
+        return pinCount.incrementAndGet();
+    }
+
+    public int removePin() {
+        return pinCount.decrementAndGet();
+    }
+
+    public int getPinCount() {
+        return pinCount.get();
     }
 
     public void lockRead() {
