@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
@@ -29,7 +31,7 @@ public class BufferPool {
     private Frame[] frames;
     private Map<PageId, Integer> pages;
     private List<Integer> freeFrames;
-    private Map<String, List<Long>> deallocatedPages;
+    private Map<String, SortedSet<Long>> deallocatedPages;
     private Lock bpmLatch;
 
     public BufferPool(int size, Replacer replacer, DiskManeger diskManeger) {
@@ -39,7 +41,7 @@ public class BufferPool {
         frames = new Frame[size];
         freeFrames = new LinkedList<Integer>();
         pages = new HashMap<PageId, Integer>();
-        deallocatedPages = new HashMap<String, List<Long>>();
+        deallocatedPages = new HashMap<String, SortedSet<Long>>();
         bpmLatch = new ReentrantLock();
 
         for(int i = 0; i < size; i ++) {
@@ -59,7 +61,7 @@ public class BufferPool {
     public long allocateNewPage(String fileName) throws IOException, NullPointerException {
         bpmLatch.lock();
         if (deallocatedPages.containsKey(fileName)) {
-            List<Long> pages = deallocatedPages.get(fileName);
+            SortedSet<Long> pages = deallocatedPages.get(fileName);
             if (!pages.isEmpty()) {
                 long pageId = pages.getLast();
                 pages.removeLast();
@@ -204,10 +206,22 @@ public class BufferPool {
         return writeGuard;
     }
 
-    public boolean deletePage(String fileName, long pageId) {
+    public void deletePage(String fileName, long pageId) {
         // if page exists in the pool
         PageId pid = new PageId(fileName, pageId);
+        bpmLatch.lock();
+        if (pages.containsKey(pid)) {
+            int frameId = pages.get(pid);
+            pages.remove(pid);
+            replacer.deleteFrame(frameId);
+        }
         
+        SortedSet<Long> fileFreePages = deallocatedPages.get(fileName);
+        if (fileFreePages == null) {
+            fileFreePages = new TreeSet<Long>();
+        }
+        
+        fileFreePages.add(pageId);
     }
 
     

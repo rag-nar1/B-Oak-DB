@@ -137,4 +137,14 @@ public class Replacer {
         frame.setEvictable(evictable);
         latch.unlock();
     }
+
+    public void deleteFrame(int frameId) {
+        latch.lock();
+        if (!frames.containsKey(frameId)) {
+            latch.unlock();
+            return;
+        }
+        frames.remove(frameId);
+        latch.unlock();
+    }
 }
