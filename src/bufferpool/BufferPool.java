@@ -1,7 +1,7 @@
 package bufferpool;
 
+import java.io.Closeable;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -17,7 +17,7 @@ import java.util.AbstractMap.SimpleEntry;
 import diskmanager.DiskManeger;
 import diskmanager.DiskRequest;
 
-public class BufferPool {
+public class BufferPool implements Closeable {
 
     public class PageId extends SimpleEntry<String, Long> {
         public PageId(String key, Long value) {
@@ -38,7 +38,7 @@ public class BufferPool {
         framesNumber = size;
         this.replacer = replacer;
         this.diskManeger = diskManeger;
-        frames = new Frame[size];
+        frames = new Frame[framesNumber];
         freeFrames = new LinkedList<Integer>();
         pages = new HashMap<PageId, Integer>();
         deallocatedPages = new HashMap<String, SortedSet<Long>>();
@@ -48,6 +48,42 @@ public class BufferPool {
             freeFrames.addLast(i);
             frames[i] = new Frame(i);
         }
+    }
+
+    /**
+     * close the buffer pool and all the frames
+     * @throws IOException
+     */
+    public void close() throws IOException, NullPointerException {
+        // flush all the frames
+        for (int i = 0; i < framesNumber; i++) {
+            Frame frame = frames[i];
+            if (frame.isDirty()) {
+                boolean done;
+                try {
+                    done = diskOp(frame, true);
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new IOException("Error during disk operation", e);
+                }
+                if (!done) {
+                    throw new IOException("can not flush");
+                }
+            }
+        }
+        // close the disk manager
+        diskManeger.close();
+        // invalidate the buffer pool
+        for (int i = 0; i < framesNumber; i++) {
+            frames[i] = null;
+        }
+        frames = null;
+        pages = null;
+        freeFrames = null;
+        deallocatedPages = null;
+        bpmLatch = null;
+        replacer = null;
+        framesNumber = -1;
+        diskManeger = null;
     }
 
     /**
@@ -146,7 +182,6 @@ public class BufferPool {
             } else {
                 guard = new ReadGuard(frameId, frame, replacer, bpmLatch);
             }
-            bpmLatch.unlock();
             return guard;
         }
 
@@ -201,7 +236,7 @@ public class BufferPool {
      * @throws ExecutionException
      */
     public WriteGuard getWriteGuard(String fileName, long pageId) throws Exception, InterruptedException, NullPointerException, ExecutionException {
-        Guard guard = getGuard(fileName, pageId, false);
+        Guard guard = getGuard(fileName, pageId, true);
         WriteGuard writeGuard = (WriteGuard) guard;
         return writeGuard;
     }
@@ -223,8 +258,5 @@ public class BufferPool {
         
         fileFreePages.add(pageId);
     }
-
-    
-
 
 }

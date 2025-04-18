@@ -1,61 +1,62 @@
-import diskmanager.DiskManeger;
-import diskmanager.DiskRequest;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.Scanner;
-import java.util.concurrent.CompletableFuture;
+import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutionException;
 
+import diskmanager.DiskManeger;
+import bufferpool.BufferPool;
+import bufferpool.ReadGuard;
+import bufferpool.Replacer;
+import bufferpool.WriteGuard;
+
 public class Main {
-    public static void main(String[] args) throws IOException, InterruptedException, NullPointerException, ExecutionException {
+    public static void main(String[] args)  throws Exception, InterruptedException, NullPointerException, ExecutionException {
         // Create storage directory if it doesn't exist
         File dir = new File("storage");
         if (!dir.exists()) {
             dir.mkdir();
         }
         
-        String fileName = "storage/file1.db";
+        String fileName = "file1.db";
        
         DiskManeger DM = new DiskManeger();
-        DM.open(fileName);
+        Replacer replacer = new Replacer(10);
+        BufferPool bufferPool = new BufferPool(10, replacer, DM);
 
-        // Now read the data back
-        byte[] buffer = new byte[4096];
-        DiskRequest read = new DiskRequest(fileName, 1, buffer, false);
-        DM.pushRequest(read);
-        CompletableFuture<Boolean> finish = read.getFuture();
-        boolean done = finish.get();
-        if (!done) {
-            DM.close();
-            throw new ExecutionException("Read failed", null);
+        long pageId1 = bufferPool.allocateNewPage(fileName);
+        long pageId2 = bufferPool.allocateNewPage(fileName);
+
+        WriteGuard writeGuard1 = bufferPool.getWriteGuard(fileName, pageId1);
+        WriteGuard writeGuard2 = bufferPool.getWriteGuard(fileName, pageId2);
+
+        byte[] data1 = writeGuard1.getDataMut();
+        byte[] data2 = writeGuard2.getDataMut();
+
+        byte[] msg1 = "Hello, page 1".getBytes();
+        byte[] msg2 = "Hello, page 2".getBytes();
+
+        System.arraycopy(msg1, 0, data1, 0, msg1.length);
+        System.arraycopy(msg2, 0, data2, 0, msg2.length);
+
+        writeGuard1.close();
+        writeGuard2.close();
+
+        ReadGuard readGuard1 = bufferPool.getReadGuard(fileName, pageId1);
+        ReadGuard readGuard2 = bufferPool.getReadGuard(fileName, pageId2);
+
+        ByteBuffer readData1 = readGuard1.getData();
+        ByteBuffer readData2 = readGuard2.getData();
+
+        for (int i = 0; i < msg1.length; i++) {
+            System.out.print((char) readData1.get(i));
         }
-
-        // Print data as characters
-        System.out.println("File content (as text):");
-        System.out.println(new String(buffer));
-        
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("Enter a new string to write to the file:");
-        String newString = scanner.nextLine();
-
-        buffer = new byte[4096];
-        for (int i = 0; i < newString.length(); i++) {
-            buffer[i] = (byte)newString.charAt(i);
+        System.out.println();
+        for (int i = 0; i < msg2.length; i++) {
+            System.out.print((char) readData2.get(i));
         }
-
-        DiskRequest write = new DiskRequest(fileName, 1, buffer, true);
-        
-        DM.pushRequest(write);
-        finish = write.getFuture();
-        done = finish.get();
-        if (!done) {
-            DM.close();
-            scanner.close();
-            throw new ExecutionException("Write failed", null);
-        }
-
-        DM.close();
-        scanner.close();
+        System.out.println();
+        readGuard1.close();
+        readGuard2.close();
+        bufferPool.close();
     }
 }

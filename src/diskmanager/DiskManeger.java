@@ -14,6 +14,8 @@ public class DiskManeger implements Closeable {
     private int fileCount;
     private BlockingQueue<DiskRequest> requestQueue;
     private Thread mainThread;
+
+    private final String storageDir = "storage/";
     /**
      * defualt constructre
      * todo: make new constructors based on a config 
@@ -62,34 +64,40 @@ public class DiskManeger implements Closeable {
      * @throws InterruptedException while ferching a request
      * @throws NullPointerException if used after a close call
      */
-    private void run() throws InterruptedException, NullPointerException{
+    private void run() throws InterruptedException, NullPointerException {
         while(!Thread.currentThread().isInterrupted()) {
             try {
                 DiskRequest currentRequest = requestQueue.take();
                 new Thread(()-> {
                     DiskFile file = this.files.get(currentRequest.fileName);
                     if (file == null) {
-                        currentRequest.finish.complete(false);
-                        return;
+                        try {
+                            open(currentRequest.fileName);
+                            file = this.files.get(currentRequest.fileName);
+                        } catch (Exception e) {
+                            Thread.currentThread().interrupt(); // Restore interrupted status
+                            e.printStackTrace(); // Log the exception
+                            return;
+                        }
                     }
 
-                if (currentRequest.isWrite) {
-                    try {
-                        file.writePage(currentRequest.pageID, currentRequest.data);
-                        currentRequest.finish.complete(true);
-                    } catch (IOException e) {
-                        Thread.currentThread().interrupt(); // Restore interrupted status
-                        e.printStackTrace(); // Log the exception
+                    if (currentRequest.isWrite) {
+                        try {
+                            file.writePage(currentRequest.pageID, currentRequest.data);
+                            currentRequest.finish.complete(true);
+                        } catch (IOException e) {
+                            Thread.currentThread().interrupt(); // Restore interrupted status
+                            e.printStackTrace(); // Log the exception
+                        }
+                    } else {
+                        try {
+                            file.readPage(currentRequest.pageID, currentRequest.data);
+                            currentRequest.finish.complete(true);
+                        } catch (IOException e) {
+                            Thread.currentThread().interrupt(); // Restore interrupted status
+                            e.printStackTrace(); // Log the exception
+                        }
                     }
-                } else {
-                    try {
-                        file.readPage(currentRequest.pageID, currentRequest.data);
-                        currentRequest.finish.complete(true);
-                    } catch (IOException e) {
-                        Thread.currentThread().interrupt(); // Restore interrupted status
-                        e.printStackTrace(); // Log the exception
-                    }
-                }
 
                 }).start();
             } catch (InterruptedException e) {
@@ -119,9 +127,10 @@ public class DiskManeger implements Closeable {
     public long allocatePage(String fileName) throws IOException, NullPointerException {
         DiskFile file = files.get(fileName);
         if (file == null) {
-            return -1;
+            file = new DiskFile(storageDir + fileName, 4096);
+            files.put(fileName, file);
+            fileCount++;
         }
-
         return file.allocatePage();
     }
 
@@ -144,7 +153,7 @@ public class DiskManeger implements Closeable {
             return;
         }
 
-        DiskFile file = new DiskFile(fileName, 4096);
+        DiskFile file = new DiskFile(storageDir + fileName, 4096);
         DiskFile prev = files.put(fileName, file);
         if (prev == null) {
             fileCount ++;

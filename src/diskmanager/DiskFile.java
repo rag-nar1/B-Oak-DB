@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.io.Closeable;
 import java.nio.file.Path;
@@ -23,7 +24,7 @@ public class DiskFile implements Closeable {
         } catch (FileNotFoundException e) { // create the file if does not exist
             Files.createFile(this.filePath);
             this.file = new RandomAccessFile(filePath,"rw");
-        }
+        } 
 
         this.pageSize = pageSize;
         init();

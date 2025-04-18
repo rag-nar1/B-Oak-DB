@@ -1,6 +1,7 @@
 package bufferpool;
 
 import java.io.Closeable;
+import java.nio.ByteBuffer;
 import java.util.concurrent.locks.Lock;
 /**
  * to access the data of a frame writing or reading in throw this
@@ -25,6 +26,15 @@ public class Guard implements Closeable{
             replacer.setEvictable(frameId, false);
         }
         bpmLatch.unlock();
+    }
+
+    public byte[] getDataMut() {
+        frame.setDirty(true);
+        return frame.getData();
+    }
+
+    public ByteBuffer getData() {
+        return ByteBuffer.wrap(frame.getData()).asReadOnlyBuffer();
     }
 
     public void close() {
