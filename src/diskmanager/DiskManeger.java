@@ -56,7 +56,7 @@ public class DiskManeger implements Closeable {
         });
         files = null;
         fileCount = -1;
-
+        mainThread = null;
     }
 
     /**
