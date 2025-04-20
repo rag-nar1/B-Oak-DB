@@ -11,6 +11,8 @@ import static org.junit.Assert.*;
 
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ReplacerTest {
     private Replacer replacer;
@@ -215,14 +217,16 @@ public class ReplacerTest {
         Thread[] recording = new Thread[numThreads];
         AtomicInteger currentTime = new AtomicInteger(0);
         List<Triple> timeLine = new ArrayList<>();
-        
+        Lock listLock = new ReentrantLock();
         // Create threads that will try to evict frames concurrently
         for (int i = 0; i < numThreads; i++) {
             final int threadIndex = i;
             evicting[i] = new Thread(() -> {
                 int evictedFrames = replacer.evict();
                 int time = currentTime.incrementAndGet();
+                listLock.lock();
                 timeLine.add(new Triple(evictedFrames, time, 'E'));
+                listLock.unlock();
             });
         }
         Random random = new Random();
@@ -232,7 +236,9 @@ public class ReplacerTest {
                 int frameId = random.nextInt(5);
                 replacer.recordAccess(frameId);
                 int time = currentTime.incrementAndGet();
+                listLock.lock();
                 timeLine.add(new Triple(frameId, time, 'R'));
+                listLock.unlock();
             });
         }
         
@@ -246,6 +252,7 @@ public class ReplacerTest {
             thread.join();
         }
 
+        timeLine.sort((a, b) -> Integer.compare(a.time, b.time));
         // Verify that each frame was evicted exactly once
         char[] state = new char[5];
         for (Triple t : timeLine) {

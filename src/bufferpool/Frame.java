@@ -54,33 +54,39 @@ public class Frame {
         return dirty;
     }
 
-    public void setDirty(boolean dirty) {
-        this.dirty = dirty;
+    public int getFrameId() {
+        return frameId;
     }
 
     public int addPin() {
         return pinCount.incrementAndGet();
     }
-
+    
     public int removePin() {
         return pinCount.decrementAndGet();
     }
-
+    
     public int getPinCount() {
         return pinCount.get();
     }
-
+    
+    public void setDirty(boolean dirty) {
+        this.dirty = dirty;
+    }
+    
     public void lockRead() {
-       lock = latch.readLock();
-       lock.lock();
+        latch.readLock().lock();
     }
 
     public void lockWrite() {
-        lock = latch.writeLock();
-        lock.lock();
+        latch.writeLock().lock();
     }
 
-    public void unlock() {
-        lock.unlock();
+    public void unlockRead() {
+        latch.readLock().unlock();
+    }
+
+    public void unlockWrite() {
+        latch.writeLock().unlock();
     }
 }
