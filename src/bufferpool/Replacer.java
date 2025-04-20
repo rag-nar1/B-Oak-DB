@@ -112,12 +112,13 @@ public class Replacer {
         }
 
         if (victim == -1) {
+            latch.unlock();
             return -1;
         }
 
         frames.remove(victim);
+        
         latch.unlock();
-
         return victim;
     }
 
