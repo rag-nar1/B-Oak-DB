@@ -26,6 +26,7 @@ public class BufferPool implements Closeable {
     }
 
     private int framesNumber;
+    private int k;
     private Replacer replacer;
     private DiskManeger diskManeger;
     private Frame[] frames;
@@ -34,9 +35,19 @@ public class BufferPool implements Closeable {
     private Map<String, SortedSet<Long>> deallocatedPages;
     private Lock bpmLatch;
 
-    public BufferPool(int size, Replacer replacer, DiskManeger diskManeger) {
+    public BufferPool(int size, int k, DiskManeger diskManeger) {
+        if (k < 0) {
+            throw new IllegalArgumentException("k must be positive");
+        }
+        if (size <= 0) {
+            throw new IllegalArgumentException("size must be positive");
+        }
+        if (diskManeger == null) {
+            throw new NullPointerException("disk manager can not be null");
+        }
         framesNumber = size;
-        this.replacer = replacer;
+        this.k = k;
+        this.replacer = new Replacer(this.k);
         this.diskManeger = diskManeger;
         frames = new Frame[framesNumber];
         freeFrames = new LinkedList<Integer>();
@@ -154,7 +165,33 @@ public class BufferPool implements Closeable {
                 throw new Exception("can not flush");
             }
         }
+        // remove the page from the pages map
+        PageId pid = new PageId(frame.getFileName(), frame.getPageId());
+        if (pages.containsKey(pid)) {
+            pages.remove(pid);
+        }
         return frameId;
+    }
+
+    private void recordAccess(Frame frame) {
+        replacer.recordAccess(frame.getFrameId());
+        frame.addPin();
+        if (frame.getPinCount() == 1) {
+            replacer.setEvictable(frame.getFrameId(), false);
+        }
+    }
+
+    private boolean isPageIdValid(String fileName, long pageId) {
+        if (deallocatedPages.containsKey(fileName)) {
+            SortedSet<Long> pages = deallocatedPages.get(fileName);
+            if (pages.contains(pageId)) {
+                return false;
+            }
+        }
+        if (diskManeger.getPageCount(fileName) <= pageId) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -169,12 +206,33 @@ public class BufferPool implements Closeable {
      * @throws ExecutionException
      */
     private Guard getGuard(String fileName, long pageId, boolean isWrite) throws Exception, InterruptedException, NullPointerException, ExecutionException {
+        bpmLatch.lock();
+        if (pageId < 0) {
+            bpmLatch.unlock();
+            throw new IllegalArgumentException("pageId must be positive");
+        }
+
+        if (!isPageIdValid(fileName, pageId)) {
+            bpmLatch.unlock();
+            throw new IllegalArgumentException("pageId is not valid");
+        }
+        
+        if (fileName == null) {
+            bpmLatch.unlock();
+            throw new NullPointerException("fileName can not be null");
+        }
+
+        if (fileName.isEmpty()) {
+            bpmLatch.unlock();
+            throw new IllegalArgumentException("fileName can not be empty");
+        }
+
         PageId pid = new PageId(fileName, pageId);
         int frameId;
-        bpmLatch.lock();
         if (pages.containsKey(pid)) { // if the page already in the buffer 
             frameId = pages.get(pid);
             Frame frame = frames[frameId];
+            recordAccess(frame);
             bpmLatch.unlock();
             Guard guard;
             if (isWrite) {
@@ -194,10 +252,12 @@ public class BufferPool implements Closeable {
         Frame frame = frames[frameId];
         frame.newFrame(pageId, fileName);
         if (!diskOp(frame, false)) {
+            bpmLatch.unlock();
             return null;
         }
 
         pages.put(pid, frameId);
+        recordAccess(frame);
         bpmLatch.unlock();
         Guard guard;
         if (isWrite) {
@@ -205,7 +265,6 @@ public class BufferPool implements Closeable {
         } else {
             guard = new ReadGuard(frameId, frame, replacer, bpmLatch);
         }
-
         return guard;
     }
 
@@ -235,7 +294,7 @@ public class BufferPool implements Closeable {
      * @throws NullPointerException
      * @throws ExecutionException
      */
-    public WriteGuard getWriteGuard(String fileName, long pageId) throws Exception, InterruptedException, NullPointerException, ExecutionException {
+    public WriteGuard getWriteGuard(String fileName, long pageId) throws Exception, InterruptedException, NullPointerException, ExecutionException, IllegalArgumentException {
         Guard guard = getGuard(fileName, pageId, true);
         WriteGuard writeGuard = (WriteGuard) guard;
         return writeGuard;
@@ -249,6 +308,10 @@ public class BufferPool implements Closeable {
             int frameId = pages.get(pid);
             pages.remove(pid);
             replacer.deleteFrame(frameId);
+        }
+
+        if (!deallocatedPages.containsKey(fileName)) {
+            deallocatedPages.put(fileName, new TreeSet<Long>());
         }
         
         SortedSet<Long> fileFreePages = deallocatedPages.get(fileName);

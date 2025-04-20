@@ -1,7 +1,6 @@
 package bufferpool;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -14,7 +13,6 @@ public class Frame {
     private byte[] data;
     private AtomicInteger pinCount;
     private ReadWriteLock latch;
-    private Lock lock;
 
     public Frame(){}
     public Frame(int frameId){
@@ -33,6 +31,7 @@ public class Frame {
     }
 
     public void newFrame(long pageId, String fileName) {
+        dirty = false;
         this.pageId = pageId;
         this.fileName = fileName;
         pinCount = new AtomicInteger();

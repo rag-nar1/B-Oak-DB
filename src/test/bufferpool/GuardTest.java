@@ -153,7 +153,7 @@ public class GuardTest {
             threads[i] = new Thread(() -> {
                 try {
                     startLatch.await();
-                    Guard guard = new ReadGuard(FRAME_ID, frame, replacer, bpmLatch);
+                    ReadGuard guard = new ReadGuard(FRAME_ID, frame, replacer, bpmLatch);
                     totalPinCount.incrementAndGet();
                     Thread.sleep(10);
                     guard.close();
@@ -169,7 +169,7 @@ public class GuardTest {
             threads[i + numThreads] = new Thread(() -> {
                 try {
                     startLatch.await();
-                    Guard guard = new WriteGuard(FRAME_ID, frame, replacer, bpmLatch);
+                    WriteGuard guard = new WriteGuard(FRAME_ID, frame, replacer, bpmLatch);
                     totalPinCount.incrementAndGet();
                     Thread.sleep(10);
                     guard.close();

@@ -8,10 +8,9 @@ public class WriteGuard extends Guard {
         frame.lockWrite();
     }
 
-    @Override
     public void close() {
-        int pinCount = frame.removePin();
         bpmLatch.lock();
+        int pinCount = frame.removePin();
         if (pinCount == 0) {
             replacer.setEvictable(frameId, true);
         }

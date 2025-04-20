@@ -143,6 +143,19 @@ public class DiskManeger implements Closeable {
     }
 
     /**
+     *  get the number of pages in the file
+     * @param fileName
+     * @return
+     */
+    public long getPageCount(String fileName) {
+        DiskFile file = files.get(fileName);
+        if (file == null) {
+            return 0;
+        }
+        return file.getPageCnt();
+    }
+
+    /**
      * opens a file if not already opened before
      * @param fileName the name of the file to be opened
      * @throws IOException while opening the file
