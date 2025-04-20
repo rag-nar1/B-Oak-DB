@@ -7,6 +7,8 @@ public class WriteGuard extends Guard {
         super(frameId, frame, replacer, bpmLatch);
         frame.lockWrite();
     }
+
+    @Override
     public void close() {
         int pinCount = frame.removePin();
         bpmLatch.lock();
@@ -16,4 +18,10 @@ public class WriteGuard extends Guard {
         bpmLatch.unlock();
         frame.unlockWrite();
     }
+
+    public byte[] getDataMut() {
+        frame.setDirty(true);
+        return frame.getData();
+    }
+
 }

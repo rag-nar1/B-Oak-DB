@@ -9,7 +9,8 @@ public class ReadGuard extends Guard implements Closeable{
         super(frameId, frame, replacer, bpmLatch);
         frame.lockRead();
     }
-
+    
+    @Override
     public void close() {
         int pinCount = frame.removePin();
         bpmLatch.lock();

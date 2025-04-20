@@ -27,13 +27,17 @@ public class Guard{
         bpmLatch.unlock();
     }
 
-    public byte[] getDataMut() {
-        frame.setDirty(true);
-        return frame.getData();
-    }
-
     public ByteBuffer getData() {
         return ByteBuffer.wrap(frame.getData()).asReadOnlyBuffer();
+    }
+
+    public void close() {
+        int pinCount = frame.removePin();
+        bpmLatch.lock();
+        if (pinCount == 0) {
+            replacer.setEvictable(frameId, true);
+        }
+        bpmLatch.unlock();
     }
 }
 
