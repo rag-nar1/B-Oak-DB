@@ -3,7 +3,7 @@ package bufferpool;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
+import globals.Globals;
 public class Frame {
 
     private int frameId;
@@ -17,15 +17,16 @@ public class Frame {
     public Frame(){}
     public Frame(int frameId){
         this.frameId = frameId;
-        this.data = new byte[4096];
+        this.data = new byte[Globals.PAGE_SIZE];
         pinCount = new AtomicInteger();
         latch = new ReentrantReadWriteLock();
     }
+    
     public Frame(int frameId, int pageId, String fileName) {
         this.frameId = frameId;
         this.pageId = pageId;
         this.fileName = fileName;
-        this.data = new byte[4096];
+        this.data = new byte[Globals.PAGE_SIZE];
         pinCount = new AtomicInteger();
         latch = new ReentrantReadWriteLock();
     }

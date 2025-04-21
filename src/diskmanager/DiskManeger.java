@@ -127,7 +127,7 @@ public class DiskManeger implements Closeable {
     public long allocatePage(String fileName) throws IOException, NullPointerException {
         DiskFile file = files.get(fileName);
         if (file == null) {
-            file = new DiskFile(storageDir + fileName, 4096);
+            file = new DiskFile(storageDir + fileName);
             files.put(fileName, file);
             fileCount++;
         }
@@ -166,7 +166,7 @@ public class DiskManeger implements Closeable {
             return;
         }
 
-        DiskFile file = new DiskFile(storageDir + fileName, 4096);
+        DiskFile file = new DiskFile(storageDir + fileName);
         DiskFile prev = files.put(fileName, file);
         if (prev == null) {
             fileCount ++;

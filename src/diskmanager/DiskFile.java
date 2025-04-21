@@ -8,6 +8,8 @@ import java.nio.file.Paths;
 import java.io.Closeable;
 import java.nio.file.Path;
 
+import globals.Globals;
+
 public class DiskFile implements Closeable {
 
     private Path filePath;
@@ -16,7 +18,7 @@ public class DiskFile implements Closeable {
     private long pageCnt; // number of pages in the file
     private long fileSize;
 
-    public DiskFile(String filePath, long pageSize) throws IOException {
+    public DiskFile(String filePath) throws IOException {
         this.filePath = Paths.get(filePath);
         try { // try to open file
             this.file = new RandomAccessFile(filePath,"rw");
@@ -25,7 +27,7 @@ public class DiskFile implements Closeable {
             this.file = new RandomAccessFile(filePath,"rw");
         } 
 
-        this.pageSize = pageSize;
+        this.pageSize = Globals.PAGE_SIZE; // page size in bytes
         init();
     }
 
