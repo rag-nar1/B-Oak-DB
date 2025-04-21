@@ -13,7 +13,5 @@ import java.io.Serializable;
     * The last pageId points to the subtree where keys are greater than keyN.
  */
 public class InternalNode<KeyType extends Comparable<KeyType> & Serializable> extends TreeNode<KeyType, Long> {
-    public InternalNode(short maxKeysN, long pageId) {
-        super(maxKeysN, pageId, true);
-    }
+   
 }
