@@ -9,10 +9,10 @@ public class Array<T> {
         int byteSize();
 
         /** Read the element at array‐index i from the buffer */
-        T read(ByteBuffer buf, int i);
+        T read(ByteBuffer buf);
 
         /** Write the element at array‐index i into the buffer */
-        void write(ByteBuffer buf, int i, T value);
+        void write(ByteBuffer buf, T value);
     }
 
     private final ByteBuffer buf;
@@ -34,13 +34,15 @@ public class Array<T> {
     /** Read element i (0 ≤ i < length) */
     public T get(int i) {
         checkIndex(i);
-        return codec.read(buf.position(offsetBytes), i);
+        buf.position(offsetBytes + i * codec.byteSize());
+        return codec.read(buf);
     }
 
     /** Write element i (0 ≤ i < length) */
     public void set(int i, T value) {
         checkIndex(i);
-        codec.write(buf.position(offsetBytes), i, value);
+        buf.position(offsetBytes + i * codec.byteSize());
+        codec.write(buf, value);
     }
 
     private void checkIndex(int i) {
@@ -73,12 +75,12 @@ public class Array<T> {
             return Integer.BYTES;
         }
 
-        public Integer read(ByteBuffer buf, int i) {
+        public Integer read(ByteBuffer buf) {
             return buf.getInt();
         }
 
-        public void write(ByteBuffer buf, int i, Integer value) {
-            buf.putInt(value);
+        public void write(ByteBuffer buf, Integer value) {
+            buf.putInt( value);
         }
     }
 
@@ -87,11 +89,12 @@ public class Array<T> {
             return Long.BYTES;
         }
 
-        public Long read(ByteBuffer buf, int i) {
+        public Long read(ByteBuffer buf) {
+
             return buf.getLong();
         }
 
-        public void write(ByteBuffer buf, int i, Long value) {
+        public void write(ByteBuffer buf, Long value) {
             buf.putLong(value);
         }
     }
@@ -101,11 +104,11 @@ public class Array<T> {
             return Double.BYTES;
         }
 
-        public Double read(ByteBuffer buf, int i) {
+        public Double read(ByteBuffer buf) {
             return buf.getDouble();
         }
 
-        public void write(ByteBuffer buf, int i, Double value) {
+        public void write(ByteBuffer buf, Double value) {
             buf.putDouble(value);
         }
     }
@@ -115,11 +118,11 @@ public class Array<T> {
             return Short.BYTES;
         }
 
-        public Short read(ByteBuffer buf, int i) {
+        public Short read(ByteBuffer buf) {
             return buf.getShort();
         }
 
-        public void write(ByteBuffer buf, int i, Short value) {
+        public void write(ByteBuffer buf, Short value) {
             buf.putShort(value);
         }
     }
@@ -129,11 +132,11 @@ public class Array<T> {
             return Byte.BYTES;
         }
 
-        public Byte read(ByteBuffer buf, int i) {
+        public Byte read(ByteBuffer buf) {
             return buf.get();
         }
 
-        public void write(ByteBuffer buf, int i, Byte value) {
+        public void write(ByteBuffer buf, Byte value) {
             buf.put(value);
         }
     }
@@ -143,11 +146,11 @@ public class Array<T> {
             return Float.BYTES;
         }
 
-        public Float read(ByteBuffer buf, int i) {
+        public Float read(ByteBuffer buf) {
             return buf.getFloat();
         }
 
-        public void write(ByteBuffer buf, int i, Float value) {
+        public void write(ByteBuffer buf, Float value) {
             buf.putFloat(value);
         }
     }

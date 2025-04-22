@@ -39,5 +39,46 @@ public class Main {
         for (int i = 0; i < leafNode.getKeysN(); i++) {
             System.out.println("Key: " + leafNode.getKey(i) + ", Value: " + leafNode.getValue(i));
         }
+
+        // check if the data is written to the frame correctly
+        System.out.println("Data in the frame: ");
+        buffer.position(leafNode.getHeaderSize()); // Set position to the start of the data
+        for(int i = 0; i < leafNode.getMaxKeysN(); i++) {
+            int key = buffer.getInt(); // Read the key
+            System.out.println("Key: " + key);
+        }
+        System.out.println("Data in the frame: ");
+        buffer.position(leafNode.getHeaderSize() + leafNode.getMaxKeysN() * Integer.BYTES); // Set position to the start of the values  
+
+        for(int i = 0; i < leafNode.getMaxKeysN(); i++) {
+            int value = buffer.getInt(); // Read the value
+            System.out.println("Value: " + value);
+        }
+        leafNode.writeHeader(); // Write the header to the frame
+        // Write the frame to a file
+        try (FileOutputStream fos = new FileOutputStream(new File(fileString))) {
+            fos.write(frame.getData());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // Read the frame from the file
+        try (FileInputStream fis = new FileInputStream(new File(fileString))) {
+            fis.read(frame.getData());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // Create a new LeafNode from the read data
+        LeafNode<Integer, Integer> newLeafNode = new LeafNode<>(
+                                            Integer.class, Integer.class, frame.getData());
+
+        System.out.println("Number of keys in the new leaf node: " + newLeafNode.getKeysN());
+        System.out.println("Max keys in the new node: " + newLeafNode.getMaxKeysN());
+        System.out.println("Keys in the new leaf node: ");
+        for (int i = 0; i < newLeafNode.getKeysN(); i++) {
+            System.out.println("Key: " + newLeafNode.getKey(i) + ", Value: " + newLeafNode.getValue(i));
+        }
+
     }
 }
