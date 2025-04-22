@@ -15,6 +15,25 @@ public class GenericByteReader {
         return converter.convert(data); // Convert bytes to type T
     }
 
+    // generic method to convert a specific type T to bytes
+    public static <T> byte[] convertToBytes(T value) {
+        if (value instanceof Integer) {
+            return ByteBuffer.allocate(4).putInt((Integer) value).array();
+        } else if (value instanceof Long) {
+            return ByteBuffer.allocate(8).putLong((Long) value).array();
+        } else if (value instanceof Double) {
+            return ByteBuffer.allocate(8).putDouble((Double) value).array();
+        } else if (value instanceof Short) {
+            return ByteBuffer.allocate(2).putShort((Short) value).array();
+        } else if (value instanceof Byte) {
+            return new byte[]{(Byte) value};
+        } else if (value instanceof Float) {
+            return ByteBuffer.allocate(4).putFloat((Float) value).array();
+        } else {
+            throw new IllegalArgumentException("Unsupported type: " + value.getClass().getName());
+        }
+    }
+
     // Helper method to create converters for primitive wrapper types
     public static <T> ByteConverter<T> primitiveConverter(Class<T> targetType) {
         return bytes -> {

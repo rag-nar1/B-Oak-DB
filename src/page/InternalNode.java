@@ -12,6 +12,6 @@ import java.io.Serializable;
     pageId_i points to the subtree where keys there sutisfy key_i < key <= key_(i+1)
     * The last pageId points to the subtree where keys are greater than keyN.
  */
-public class InternalNode<KeyType extends Comparable<KeyType> & Serializable> extends TreeNode<KeyType, Long> {
+public class InternalNode<KeyType extends Comparable<KeyType> & Serializable> extends TreeNodeHeader {
    
 }
