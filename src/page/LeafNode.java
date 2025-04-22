@@ -71,8 +71,9 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         this.isLeaf = buffer.get() == 1;
         this.pageId = buffer.getLong();
         this.nextLeafNode = buffer.getLong();
-        this.keys = new Array<>(rawData, Array.getCodec(keyType), headerSize, maxKeysN);
-        this.values = new Array<>(rawData, Array.getCodec(valueType), headerSize + maxKeysN * keySize, maxKeysN);
+
+        keys = new Array<>(rawData, Array.getCodec(keyType), headerSize, maxKeysN);
+        values = new Array<>(rawData, Array.getCodec(valueType), headerSize + maxKeysN * keySize, maxKeysN);
     }
 
     public void writeHeader() {

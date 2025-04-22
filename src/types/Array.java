@@ -47,9 +47,8 @@ public class Array<T> {
 
     private void checkIndex(int i) {
         if (i < 0 || i >= length)
-        throw new IndexOutOfBoundsException(i + "/" + length);
+            throw new IndexOutOfBoundsException(i + "/" + length);
     }
-
 
     // coders for primitive types // Todo: add StringCodec
     @SuppressWarnings("unchecked")
@@ -80,7 +79,7 @@ public class Array<T> {
         }
 
         public void write(ByteBuffer buf, Integer value) {
-            buf.putInt( value);
+            buf.putInt(value);
         }
     }
 
