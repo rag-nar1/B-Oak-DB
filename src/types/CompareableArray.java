@@ -1,8 +1,8 @@
 package types;
 
 public class CompareableArray <T extends Comparable<T>> extends Array<T> {
-    public CompareableArray(byte[] data, MemoryCodec<T> codec, int offsetBytes, int length) {
-        super(data, codec, offsetBytes, length);
+    public CompareableArray(byte[] data, MemoryCodec<T> codec, int offsetBytes, int length, int capacity) {
+        super(data, codec, offsetBytes, length, capacity);
     }
 
     public int upperBound(T key) {

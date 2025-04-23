@@ -44,6 +44,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
     
     public boolean insert(KeyType key, ValueType value) throws Exception{
         // check if the B+ tree is empty
+        Context context = new Context();
         WriteGuard guard = bufferPool.getWriteGuard(fileName, headerPageId);
         BtreeHeader header = new BtreeHeader(guard.getData());
         if (header.getRootPageId() == Globals.INVALID_PAGE_ID) {
@@ -54,13 +55,13 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
             header.setRootPageId(newRootPageId);
             header.setHeight((short) 1);
             header.writeHeader();
-            newRoot.insert(keyComparator, key, value);
+            newRoot.insert(key, value);
             newRoot.writeHeader();
             newRootGuard.close();
             guard.close();
             return true;
         }
-        Context context = new Context();
+        context.addWriteGuard(guard);
         
         return true;
     }

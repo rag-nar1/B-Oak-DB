@@ -17,13 +17,15 @@ public class Array<T> {
 
     private final ByteBuffer buf;
     private final int offsetBytes;
-    private final int length;
+    private int length;
+    private final int capacity;
     private final MemoryCodec<T> codec;
 
-    public Array(byte[] data, MemoryCodec<T> codec, int offsetBytes, int length) {
+    public Array(byte[] data, MemoryCodec<T> codec, int offsetBytes, int length, int capacity) {
         this.buf = ByteBuffer.wrap(data);
         this.offsetBytes = offsetBytes;
         this.length = length;
+        this.capacity = capacity;
         this.codec = codec;
     }
 
@@ -43,6 +45,19 @@ public class Array<T> {
         checkIndex(i);
         buf.position(offsetBytes + i * codec.byteSize());
         codec.write(buf, value);
+    }
+
+    public void insert(int i, T value) {
+        if (length + 1 > capacity)
+            throw new ArrayIndexOutOfBoundsException("Array is full");
+        checkIndex(i);
+        // shift elements [i, length) to the right
+        for (int j = length - 1; j > i; j--) {
+            set(j, get(j - 1));
+        }
+        // insert new element
+        set(i, value);
+        length++;
     }
 
     private void checkIndex(int i) {

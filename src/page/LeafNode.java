@@ -55,8 +55,8 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         valueSize = Types.getSize(valueType);
         maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + valueSize));
         minKeysN = (short) (maxKeysN / 2);
-        keys = new CompareableArray<KeyType>(null, Array.getCodec(keyType), headerSize, keysN);
-        values = new Array<>(null, Array.getCodec(valueType), headerSize, keysN);
+        keys = new CompareableArray<KeyType>(null, Array.getCodec(keyType), headerSize, keysN, maxKeysN);
+        values = new Array<>(null, Array.getCodec(valueType), headerSize + maxKeysN * keySize, keysN, maxKeysN);
     }
 
     public LeafNode(Class<KeyType> keyType, Class<ValueType> valueType, byte[] rawData) {
@@ -73,8 +73,8 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         this.pageId = buffer.getLong();
         this.nextLeafNode = buffer.getLong();
 
-        keys = new CompareableArray<KeyType>(null, Array.getCodec(keyType), headerSize, keysN);
-        values = new Array<>(rawData, Array.getCodec(valueType), headerSize + maxKeysN * keySize, maxKeysN);
+        keys = new CompareableArray<KeyType>(rawData, Array.getCodec(keyType), headerSize, keysN, maxKeysN);
+        values = new Array<>(rawData, Array.getCodec(valueType), headerSize + maxKeysN * keySize, keysN, maxKeysN);
     }
 
     public void writeHeader() {

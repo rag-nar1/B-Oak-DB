@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 
 import globals.Globals;
 import types.Array;
+import types.CompareableArray;
 import types.Types;
 
 /**
@@ -23,7 +24,7 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
     private final short keySize;
     private final short maxKeysN;
     private final short minKeysN;
-    private Array<KeyType> keys;
+    private CompareableArray<KeyType> keys;
     private Array<Long> values; // pageIds of the child nodes
     private ByteBuffer buffer;
 
@@ -33,8 +34,8 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         keySize = (short) Types.getSize(keyType);
         maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + 8));
         minKeysN = (short) (maxKeysN / 2);
-        keys = new Array<>(null, Array.getCodec(keyType), headerSize, keysN);
-        values = new Array<>(null, Array.getCodec(Long.class), headerSize, keysN);
+        keys = new CompareableArray<KeyType>(null, Array.getCodec(keyType), headerSize, keysN, maxKeysN);
+        values = new Array<>(null, Array.getCodec(Long.class), headerSize,  keysN, maxKeysN);
     }
 
     public InternalNode(Class<KeyType> keyType, byte[] rawData) {
@@ -48,8 +49,8 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         this.isLeaf = buffer.get() == 1;
         this.pageId = buffer.getLong();
 
-        keys = new Array<>(rawData, Array.getCodec(keyType), headerSize, keysN);
-        values = new Array<>(rawData, Array.getCodec(Long.class), headerSize + keysN * keySize, keysN);
+        keys = new CompareableArray<KeyType>(rawData, Array.getCodec(keyType), headerSize, keysN, maxKeysN);
+        values = new Array<>(rawData, Array.getCodec(Long.class), headerSize + keysN * keySize, keysN, maxKeysN);
     }
 
     public void writeHeader() {
@@ -81,7 +82,7 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         return keyType;
     }
 
-    public Array<KeyType> getKeys() {
+    public CompareableArray<KeyType> getKeys() {
         return keys;
     }
 
@@ -89,7 +90,7 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         return values;
     }
 
-    public void setKeys(Array<KeyType> keys) {
+    public void setKeys(CompareableArray<KeyType> keys) {
         this.keys = keys;
     }
 
