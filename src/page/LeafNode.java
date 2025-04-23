@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 
 import globals.Globals;
 import types.Array;
+import types.CompareableArray;
 import types.Types;
 
 /**
@@ -43,7 +44,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
     private final short valueSize;
     private final short maxKeysN;
     private final short minKeysN;
-    private Array<KeyType> keys;
+    private CompareableArray<KeyType> keys;
     private Array<ValueType> values;
 
     public LeafNode(Class<KeyType> keyType, Class<ValueType> valueType, long pageId) {
@@ -54,7 +55,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         valueSize = Types.getSize(valueType);
         maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + valueSize));
         minKeysN = (short) (maxKeysN / 2);
-        keys = new Array<>(null, Array.getCodec(keyType), headerSize, keysN);
+        keys = new CompareableArray<KeyType>(null, Array.getCodec(keyType), headerSize, keysN);
         values = new Array<>(null, Array.getCodec(valueType), headerSize, keysN);
     }
 
@@ -72,7 +73,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         this.pageId = buffer.getLong();
         this.nextLeafNode = buffer.getLong();
 
-        keys = new Array<>(rawData, Array.getCodec(keyType), headerSize, maxKeysN);
+        keys = new CompareableArray<KeyType>(null, Array.getCodec(keyType), headerSize, keysN);
         values = new Array<>(rawData, Array.getCodec(valueType), headerSize + maxKeysN * keySize, maxKeysN);
     }
 
@@ -82,6 +83,18 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         buffer.put((byte) (isLeaf ? 1 : 0));
         buffer.putLong(pageId);
         buffer.putLong(nextLeafNode);
+    }
+
+    public boolean insert(KeyType key, ValueType value) {
+        if (keysN >= maxKeysN) {
+            return false; // node is full
+        }
+        
+        int index = keys.upperBound(key);
+        keys.insert(index, key);
+        values.insert(index, value);
+        keysN++;
+        return true;
     }
 
     // Getters and Setters
@@ -118,7 +131,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         return minKeysN;
     }
 
-    public Array<KeyType> getKeys() {
+    public CompareableArray<KeyType> getKeys() {
         return keys;
     }
 
@@ -134,7 +147,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         return values.get(index);
     }
 
-    public void setKeys(Array<KeyType> keys) {
+    public void setKeys(CompareableArray<KeyType> keys) {
         this.keys = keys;
     }
 
