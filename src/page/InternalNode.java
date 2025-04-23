@@ -14,9 +14,9 @@ import types.Types;
  * that point to the child nodes.
  * | null |key2 |key3 |...|keyN |
  * |pageId1|pageId2|pageId3|...|pageIdN|
- * pageId_i points to the subtree where keys there sutisfy key_i < key <=
- * key_(i+1)
- * The last pageId points to the subtree where keys are greater than keyN.
+ * pageId_i points to the subtree where keys there sutisfy key_i <= key < key_(i+1)
+ * for i = 0, key_0 = -inf
+ * for i = N, key_N = +inf
  */
 public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeHeader {
     private final short headerSize = 2 + 1 + 8; // 2 bytes for keysN, 1 byte for type, 8 bytes for pageId
@@ -58,6 +58,11 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         buffer.putShort(keysN);
         buffer.put((byte) (isLeaf ? 1 : 0));
         buffer.putLong(pageId);
+    }
+
+    public long getChildForKey(KeyType key) {
+        int index = keys.upperBound(key, 1);
+        return values.get(index - 1);
     }
 
 

@@ -8,6 +8,7 @@ import bufferpool.BufferPool;
 import bufferpool.ReadGuard;
 import bufferpool.WriteGuard;
 import globals.Globals;
+import page.InternalNode;
 import page.LeafNode;
 
 public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
@@ -44,7 +45,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
     
     public boolean insert(KeyType key, ValueType value) throws Exception{
         // check if the B+ tree is empty
-        Context context = new Context();
+        Context ctx = new Context();
         WriteGuard guard = bufferPool.getWriteGuard(fileName, headerPageId);
         BtreeHeader header = new BtreeHeader(guard.getData());
         if (header.getRootPageId() == Globals.INVALID_PAGE_ID) {
@@ -61,7 +62,37 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
             guard.close();
             return true;
         }
-        context.addWriteGuard(guard);
+        ctx.setHeaderWriteGuard(guard);
+        // get the root page id
+        long rootPageId = header.getRootPageId();
+        // get the root node
+        long currentPageId = rootPageId;
+        int lvl = 1;
+        while(true) {
+            WriteGuard currentGuard = bufferPool.getWriteGuard(fileName, currentPageId);
+            if (lvl == header.getHeight()) { // we are at the leaf node level
+                ctx.addWriteGuard(currentGuard);
+                LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType, currentGuard.getDataMut());
+                if (currentNode.insert(key, value)) { // if there is space in the node insert and we are done
+                    currentNode.writeHeader();
+                    ctx.release();
+                    return true;
+                }
+                break; // if there is no space in the node we need to split
+            }
+            // if we are not at the leaf node level, we need to find the child node
+            InternalNode<KeyType> currentNode = new InternalNode<>(keyType, currentGuard.getDataMut());
+            // relase the locks over the above nodes since we are not going to split farther than this
+            if (currentNode.getKeysN() < currentNode.getMaxKeysN()) { 
+                ctx.release();
+            }
+            ctx.addWriteGuard(currentGuard);
+            long childPageId = currentNode.getChildForKey(key);
+            currentPageId = childPageId;
+            lvl ++;
+        }
+
+
         
         return true;
     }
@@ -125,6 +156,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
     }
 
     private class Context {
+        private WriteGuard headeWriteGuard;
         private Deque<WriteGuard> writeGuards;
         private Deque<ReadGuard> readGuards;
 
@@ -133,8 +165,23 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
             readGuards = new ArrayDeque<>();
         }
 
+        public void setHeaderWriteGuard(WriteGuard guard) {
+            this.headeWriteGuard = guard;
+        }
+
+        public WriteGuard getHeaderWriteGuard() {
+            return headeWriteGuard;
+        }
+
         public void addWriteGuard(WriteGuard guard) {
             writeGuards.push(guard);
+        }
+
+        public void dropHeaderWriteGuard() {
+            if (headeWriteGuard != null) {
+                headeWriteGuard.close();
+                headeWriteGuard = null;
+            }
         }
 
         public void addReadGuard(ReadGuard guard) {
@@ -174,6 +221,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
         }
 
         public void release() {
+            dropHeaderWriteGuard();
             while (!writeGuards.isEmpty()) {
                 WriteGuard guard = writeGuards.pop();
                 guard.close();
