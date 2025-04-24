@@ -59,11 +59,9 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         valueSize = Types.getSize(valueType);
         maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + valueSize));
         minKeysN = (short) (maxKeysN / 2);
-        keys = new CompareableArray<KeyType>(null, Array.getCodec(keyType), headerSize, keysN, maxKeysN);
-        values = new Array<>(null, Array.getCodec(valueType), headerSize + maxKeysN * keySize, keysN, maxKeysN);
     }
 
-    public LeafNode(Class<KeyType> keyType, Class<ValueType> valueType, byte[] rawData) {
+    public LeafNode(Class<KeyType> keyType, Class<ValueType> valueType, ByteBuffer rawData) {
         this.keyType = keyType;
         this.valueType = valueType;
         keySize = Types.getSize(keyType);
@@ -71,7 +69,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + valueSize));
         minKeysN = (short) (maxKeysN / 2);
 
-        buffer = ByteBuffer.wrap(rawData);
+        buffer = rawData;
         this.keysN = buffer.getShort();
         this.isLeaf = buffer.get() == 1;
         this.pageId = buffer.getLong();
@@ -79,6 +77,10 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
 
         keys = new CompareableArray<KeyType>(rawData, Array.getCodec(keyType), headerSize, keysN, maxKeysN);
         values = new Array<>(rawData, Array.getCodec(valueType), headerSize + maxKeysN * keySize, keysN, maxKeysN);
+    }
+
+    public LeafNode(Class<KeyType> keyType, Class<ValueType> valueType, byte[] rawData) {
+        this(keyType, valueType, ByteBuffer.wrap(rawData));
     }
 
     public void writeHeader() {
@@ -99,6 +101,15 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         values.insert(index, value);
         keysN++;
         return true;
+    }
+
+    public ValueType get(KeyType key) {
+        int index = keys.binarySearch(key);
+        if (index == -1) {
+            return null; // key not found
+        } else {
+            return values.get(index); // return the value
+        }
     }
 
     public LeafNode<KeyType,ValueType> split(BufferPool bufferPool, String fileName) {

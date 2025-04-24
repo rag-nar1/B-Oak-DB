@@ -15,7 +15,6 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
     private final String fileName;
     private final Class<KeyType> keyType;
     private final Class<ValueType> valueType;
-    private Comparable<KeyType> keyComparator;
     
     private long headerPageId;
     private BufferPool bufferPool;
@@ -41,6 +40,41 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
                 throw new RuntimeException("Error reading header page", e);
             }
         }
+    }
+
+    public ValueType get(KeyType key) throws Exception {
+        Context ctx = new Context();
+        ReadGuard guard = bufferPool.getReadGuard(fileName, headerPageId);
+        BtreeHeader header = new BtreeHeader(guard.getData());
+        if (header.getRootPageId() == Globals.INVALID_PAGE_ID) {
+            guard.close();
+            return null; // the tree is empty
+        }
+
+        long rootPageId = header.getRootPageId();
+        long currentPageId = rootPageId;
+        int lvl = 1;
+        ValueType value = null;
+        while (true) {
+            ReadGuard currentGuard = bufferPool.getReadGuard(fileName, currentPageId);
+            if (lvl == header.getHeight()) { // we are at the leaf node level
+                ctx.addReadGuard(currentGuard);
+                LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType, currentGuard.getData());
+                value = currentNode.get(key);
+                ctx.release();
+                break; // we are done
+            }
+            // if we are not at the leaf node level, we need to find the child node
+            InternalNode<KeyType> currentNode = new InternalNode<>(keyType, currentGuard.getData());
+            ctx.addReadGuard(currentGuard);
+            long childPageId = currentNode.getChildForKey(key);
+            currentPageId = childPageId;
+            lvl++;
+        }
+        
+        // release the header guard
+        guard.close();
+        return value;
     }
     
     public boolean insert(KeyType key, ValueType value) throws Exception{

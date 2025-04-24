@@ -29,6 +29,14 @@ public class Array<T> {
         this.codec = codec;
     }
 
+    public Array(ByteBuffer data, MemoryCodec<T> codec, int offsetBytes, int length, int capacity) {
+        this.buf = data;
+        this.offsetBytes = offsetBytes;
+        this.length = length;
+        this.capacity = capacity;
+        this.codec = codec;
+    }
+
     public int length() {
         return length;
     }

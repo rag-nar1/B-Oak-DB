@@ -36,23 +36,25 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         keySize = (short) Types.getSize(keyType);
         maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + 8));
         minKeysN = (short) (maxKeysN / 2);
-        keys = new CompareableArray<KeyType>(null, Array.getCodec(keyType), headerSize, keysN, maxKeysN);
-        values = new Array<>(null, Array.getCodec(Long.class), headerSize,  keysN, maxKeysN);
     }
 
-    public InternalNode(Class<KeyType> keyType, byte[] rawData) {
+    public InternalNode(Class<KeyType> keyType, ByteBuffer rawData) {
         this.keyType = keyType;
         keySize = Types.getSize(keyType);
         maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + Long.BYTES));
         minKeysN = (short) (maxKeysN / 2);
 
-        buffer = ByteBuffer.wrap(rawData);
+        buffer = rawData;
         this.keysN = buffer.getShort();
         this.isLeaf = buffer.get() == 1;
         this.pageId = buffer.getLong();
 
         keys = new CompareableArray<KeyType>(rawData, Array.getCodec(keyType), headerSize, keysN, maxKeysN);
         values = new Array<>(rawData, Array.getCodec(Long.class), headerSize + keysN * keySize, keysN, maxKeysN);
+    }
+
+    public InternalNode(Class<KeyType> keyType, byte[] rawData) {
+        this(keyType, ByteBuffer.wrap(rawData));
     }
 
     public void writeHeader() {
