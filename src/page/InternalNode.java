@@ -2,6 +2,8 @@ package page;
 
 import java.nio.ByteBuffer;
 
+import bufferpool.BufferPool;
+import bufferpool.WriteGuard;
 import globals.Globals;
 import types.Array;
 import types.CompareableArray;
@@ -63,6 +65,51 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
     public long getChildForKey(KeyType key) {
         int index = keys.upperBound(key, 1);
         return values.get(index - 1);
+    }
+
+    public int getKeyIdx(KeyType key) {
+        int index = keys.upperBound(key, 1);
+        return index;
+    }
+
+    public boolean insert(KeyType key, long value) {
+        if (keysN == maxKeysN) {
+            return false; // node is full
+        }
+        int index = keys.upperBound(key, 1);
+        keys.insert(index, key);
+        values.insert(index - 1, value);
+        keysN++;
+        return true;
+    }
+
+    public InternalNode<KeyType> split(BufferPool bufferPool, String fileName) {
+        if (keysN < minKeysN) {
+            return null;
+        }
+
+        try {
+            long newPageId = bufferPool.allocateNewPage(fileName);
+            WriteGuard newGuard = bufferPool.getWriteGuard(fileName, newPageId);
+            InternalNode<KeyType> newNode = new InternalNode<>(keyType, newGuard.getDataMut());
+            newNode.setLeaf(false);
+            newNode.setPageId(newPageId);
+
+            for (int i = minKeysN; i < keysN; i++) {
+                newNode.setKey(i - minKeysN, keys.get(i));
+                newNode.setValue(i - minKeysN, values.get(i));
+            }
+            newNode.setKeysN((short) (keysN - minKeysN));
+            setKeysN(minKeysN);
+
+            newNode.writeHeader();
+            writeHeader();
+            newGuard.close();
+            return newNode;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
 

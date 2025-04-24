@@ -1,7 +1,11 @@
 package page;
 
+import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
+import bufferpool.BufferPool;
+import bufferpool.WriteGuard;
 import globals.Globals;
 import types.Array;
 import types.CompareableArray;
@@ -97,6 +101,41 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         return true;
     }
 
+    public LeafNode<KeyType,ValueType> split(BufferPool bufferPool, String fileName) {
+        if (keysN < maxKeysN) {
+            return null; // node is not full
+        }
+
+        try {
+            // create a new leaf node
+            long newPageId = bufferPool.allocateNewPage(fileName);
+            WriteGuard newGuard = bufferPool.getWriteGuard(fileName, newPageId);
+            LeafNode<KeyType, ValueType> newLeafNode = new LeafNode<>(keyType, valueType, newGuard.getDataMut());
+            newLeafNode.setLeaf(true);
+            newLeafNode.setPageId(newPageId);
+            // copy half of the keys and values to the new leaf node
+            for (int i = minKeysN; i < keysN; i++) {
+                newLeafNode.keys.set(i - minKeysN, keys.get(i));
+                newLeafNode.values.set(i - minKeysN, values.get(i));
+            }
+            newLeafNode.setKeysN((short) (keysN - minKeysN));
+            setKeysN(keysN);
+            // set the next leaf node of the new leaf node
+            newLeafNode.nextLeafNode = nextLeafNode;
+            // set the next leaf node of the current leaf node
+            nextLeafNode = newPageId;
+
+            // write the new leaf node to the buffer pool
+            newLeafNode.writeHeader();
+            writeHeader();
+            newGuard.close();
+            return newLeafNode;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     // Getters and Setters
 
     public long getNextLeafNode() {
@@ -165,6 +204,8 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
 
     public void setKeysN(short keysN) {
         this.keysN = keysN;
+        keys.setLength(keysN);
+        values.setLength(keysN);
     }
 
     public void setPageId(long pageId) {

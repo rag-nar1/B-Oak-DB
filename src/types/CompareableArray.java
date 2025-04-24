@@ -6,7 +6,7 @@ public class CompareableArray <T extends Comparable<T>> extends Array<T> {
     }
 
     public int upperBound(T key, int low, int high) {
-        int index = low;
+        int index = high + 1;
         while (low <= high) {
             int mid = (low + high) / 2;
             T midKey = get(mid);

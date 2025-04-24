@@ -65,6 +65,31 @@ public class Array<T> {
             throw new IndexOutOfBoundsException(i + "/" + length);
     }
 
+    // getters and setters
+    public ByteBuffer getBuf() {
+        return buf;
+    }
+
+    public int getOffsetBytes() {
+        return offsetBytes;
+    }
+    
+    public int getLength() {
+        return length;
+    }
+
+    public int getCapacity() {
+        return capacity;
+    }
+
+    public MemoryCodec<T> getCodec() {
+        return codec;
+    }
+
+    public void setLength(int length) {
+        this.length = length;
+    }
+
     // coders for primitive types // Todo: add StringCodec
     @SuppressWarnings("unchecked")
     public static <T> MemoryCodec<T> getCodec(Class<T> type) {
