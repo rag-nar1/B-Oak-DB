@@ -59,6 +59,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         valueSize = Types.getSize(valueType);
         maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + valueSize));
         minKeysN = (short) (maxKeysN / 2);
+        nextLeafNode = Globals.INVALID_PAGE_ID;
     }
 
     public LeafNode(Class<KeyType> keyType, Class<ValueType> valueType, ByteBuffer rawData) {
@@ -100,6 +101,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         keys.insert(index, key);
         values.insert(index, value);
         keysN++;
+        writeHeader();
         return true;
     }
 
@@ -112,7 +114,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         }
     }
 
-    public LeafNode<KeyType,ValueType> split(BufferPool bufferPool, String fileName) {
+    public WriteGuard split(BufferPool bufferPool, String fileName) {
         if (keysN < maxKeysN) {
             return null; // node is not full
         }
@@ -130,7 +132,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
                 newLeafNode.values.set(i - minKeysN, values.get(i));
             }
             newLeafNode.setKeysN((short) (keysN - minKeysN));
-            setKeysN(keysN);
+            setKeysN(minKeysN);
             // set the next leaf node of the new leaf node
             newLeafNode.nextLeafNode = nextLeafNode;
             // set the next leaf node of the current leaf node
@@ -139,8 +141,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
             // write the new leaf node to the buffer pool
             newLeafNode.writeHeader();
             writeHeader();
-            newGuard.close();
-            return newLeafNode;
+            return newGuard;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -217,18 +218,22 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         this.keysN = keysN;
         keys.setLength(keysN);
         values.setLength(keysN);
+        writeHeader();
     }
 
     public void setPageId(long pageId) {
         this.pageId = pageId;
+        writeHeader();
     }
 
     public void setLeaf(boolean isLeaf) {
         this.isLeaf = isLeaf;
+        writeHeader();
     }
 
     public void setNextLeafNode(long nextLeafNode) {
         this.nextLeafNode = nextLeafNode;
+        writeHeader();
     }
 
 }

@@ -25,6 +25,21 @@ public class CompareableArray <T extends Comparable<T>> extends Array<T> {
         }
         return index;
     }
+
+    public int lowerBound(T key, int low, int high) {
+        int index = high + 1;
+        while (low <= high) {
+            int mid = (low + high) / 2;
+            T midKey = get(mid);
+            if (midKey.compareTo(key) >= 0) {
+                index = mid;
+                high = mid - 1;
+            } else {
+                low = mid + 1;
+            }
+        }
+        return index;
+    }
     
     public int upperBound(T key) {
         return upperBound(key, 0, length() - 1);
@@ -32,6 +47,14 @@ public class CompareableArray <T extends Comparable<T>> extends Array<T> {
 
     public int upperBound(T key, int low) {
         return upperBound(key, low, length() - 1);
+    }
+
+    public int lowerBound(T key) {
+        return lowerBound(key, 0, length() - 1);
+    }
+
+    public int lowerBound(T key, int low) {
+        return lowerBound(key, low, length() - 1);
     }
 
     public int binarySearch(T key, int low, int high) {

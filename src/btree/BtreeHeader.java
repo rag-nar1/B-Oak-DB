@@ -19,6 +19,7 @@ public class BtreeHeader {
         this.pageId = pageId;
         this.rootPageId = rootPageId;
         this.height = height;
+        writeHeader();
     }
 
     public BtreeHeader(byte[] rowData) {
@@ -48,6 +49,7 @@ public class BtreeHeader {
 
     public void setPageId(long pageId) {
         this.pageId = pageId;
+        writeHeader();
     }
 
     public long getRootPageId() {
@@ -56,6 +58,7 @@ public class BtreeHeader {
 
     public void setRootPageId(long rootPageId) {
         this.rootPageId = rootPageId;
+        writeHeader();
     }
 
     public short getHeight() {
@@ -64,6 +67,7 @@ public class BtreeHeader {
 
     public void setHeight(short height) {
         this.height = height;
+        writeHeader();
     }
 
     public boolean isEmpty() {

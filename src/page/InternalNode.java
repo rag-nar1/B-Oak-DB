@@ -50,7 +50,7 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         this.pageId = buffer.getLong();
 
         keys = new CompareableArray<KeyType>(rawData, Array.getCodec(keyType), headerSize, keysN, maxKeysN);
-        values = new Array<>(rawData, Array.getCodec(Long.class), headerSize + keysN * keySize, keysN, maxKeysN);
+        values = new Array<>(rawData, Array.getCodec(Long.class), headerSize + maxKeysN * keySize, keysN, maxKeysN);
     }
 
     public InternalNode(Class<KeyType> keyType, byte[] rawData) {
@@ -65,12 +65,12 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
     }
 
     public long getChildForKey(KeyType key) {
-        int index = keys.upperBound(key, 1);
-        return values.get(index - 1);
+        int index = keys.lowerBound(key, 1);
+        return values.get(index - 1).longValue();
     }
 
     public int getKeyIdx(KeyType key) {
-        int index = keys.upperBound(key, 1);
+        int index = keys.lowerBound(key, 1);
         return index;
     }
 
@@ -82,10 +82,11 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         keys.insert(index, key);
         values.insert(index - 1, value);
         keysN++;
+        writeHeader();
         return true;
     }
 
-    public InternalNode<KeyType> split(BufferPool bufferPool, String fileName) {
+    public WriteGuard split(BufferPool bufferPool, String fileName) {
         if (keysN < minKeysN) {
             return null;
         }
@@ -106,8 +107,7 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
 
             newNode.writeHeader();
             writeHeader();
-            newGuard.close();
-            return newNode;
+            return newGuard;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -166,14 +166,19 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
 
     public void setKeysN(short keysN) {
         this.keysN = keysN;
+        keys.setLength(keysN);
+        values.setLength(keysN);
+        writeHeader();
     }
 
     public void setPageId(long pageId) {
         this.pageId = pageId;
+        writeHeader();
     }
 
     public void setLeaf(boolean isLeaf) {
         this.isLeaf = isLeaf;
+        writeHeader();
     }
 
     public KeyType getKey(int index) {

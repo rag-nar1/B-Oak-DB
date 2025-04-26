@@ -59,17 +59,22 @@ public class Array<T> {
         if (length + 1 > capacity)
             throw new ArrayIndexOutOfBoundsException("Array is full");
         checkIndex(i);
+        length++;
         // shift elements [i, length) to the right
         for (int j = length - 1; j > i; j--) {
             set(j, get(j - 1));
         }
         // insert new element
         set(i, value);
-        length++;
+    }
+
+    private void checkIndexInbound(int i) {
+        if (i < 0 || i >= length)
+            throw new IndexOutOfBoundsException(i + "/" + length);
     }
 
     private void checkIndex(int i) {
-        if (i < 0 || i >= length)
+        if (i < 0 || i >= capacity)
             throw new IndexOutOfBoundsException(i + "/" + length);
     }
 
