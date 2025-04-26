@@ -69,15 +69,18 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
             ReadGuard currentGuard = bufferPool.getReadGuard(fileName, currentPageId);
             if (lvl == header.getHeight()) { // we are at the leaf node level
                 ctx.addReadGuard(currentGuard);
+                if (ctx.readGuards.size() > 1) {
+                    guard = ctx.popBackRead();
+                }
+                guard.close();
                 LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType, currentGuard.getData());
                 value = currentNode.get(key);
-                ctx.release();
                 break; // we are done
             }
             // if we are not at the leaf node level, we need to find the child node
             InternalNode<KeyType> currentNode = new InternalNode<>(keyType, currentGuard.getData());
             ctx.addReadGuard(currentGuard);
-            if (ctx.readGuards.size() != 1) {
+            if (ctx.readGuards.size() > 1) {
                 guard = ctx.popBackRead();
             }
             guard.close();
@@ -428,9 +431,13 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
         while (true) {
             ReadGuard currentGuard = bufferPool.getReadGuard(fileName, currentPageId);
             if (lvl == header.getHeight()) { // we are at the leaf node level
+                if (ctx.readGuards.size() == 1) {
+                    guard = ctx.popBackRead();
+                }
+                guard.close();
                 LeafNode<KeyType, ValueType> node = new LeafNode<KeyType, ValueType>(keyType, valueType,
-                        guard.getData());
-                itr = new Cursor<KeyType, ValueType>(this, guard, node);
+                        currentGuard.getData());
+                itr = new Cursor<KeyType, ValueType>(this, currentGuard, node);
                 break; // we are done
             }
             // if we are not at the leaf node level, we need to find the child node

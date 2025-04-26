@@ -19,6 +19,11 @@ public class Cursor<KeyType extends Comparable<KeyType>, ValueType> {
         this.node = node;
     }
 
+    public Pair<KeyType, ValueType> get() {
+        Pair<KeyType, ValueType> curr = new Pair<KeyType,ValueType>(node.getKey(index), node.getValue(index));
+        return curr;
+    }
+
     public void next() throws Exception {
         if (isEnd()) {
             throw new Exception("current curser is the end of the b+tree");
@@ -52,7 +57,7 @@ public class Cursor<KeyType extends Comparable<KeyType>, ValueType> {
         return index == -1;
     } 
 
-    class Pair<U, V> {
+    public class Pair<U, V> {
         public final U first;
         public final V second;
 

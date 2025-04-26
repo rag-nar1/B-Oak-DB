@@ -2,6 +2,8 @@ package test.btree;
 import org.junit.Test;
 
 import btree.Btree;
+import btree.Cursor;
+import btree.Cursor.Pair;
 import bufferpool.*;
 import diskmanager.*;
 import globals.Globals;
@@ -50,6 +52,7 @@ public class BtreeTest {
 
     @Test
     public void testInsertAndSearch() {
+        double startTime = (double) System.currentTimeMillis();
         int key = 5;
         int value = 10;
         try {
@@ -63,10 +66,16 @@ public class BtreeTest {
         } catch (Exception e) {
             fail("Search operation failed: " + e.getMessage());
         }
+
+        double endTime = System.currentTimeMillis();
+        double fTime = (endTime - startTime) / (double)1000;
+        System.out.println("test testInsertAndSearch done in: " + fTime + "s");
+
     }
 
     @Test
     public void testInsertAndSearchBigWithoutSplit() {
+        double startTime = (double) System.currentTimeMillis();
         for (int i = 0; i < 100; i ++) {
             try {
                 btree.insert(i, i);
@@ -80,10 +89,14 @@ public class BtreeTest {
                 fail("Search operation failed: " + e.getMessage());
             }
         }
+        double endTime = System.currentTimeMillis();
+        double fTime = (endTime - startTime) / (double)1000;
+        System.out.println("test testInsertAndSearchBigWithoutSplit done in: " + fTime + "s");
     } 
 
     @Test
     public void testInsertAndSearchBigWithSplit() {
+        double startTime = (double) System.currentTimeMillis();
         int itr = 1_000_000;
         for (int i = 0; i < itr; i ++) {
             try {
@@ -102,10 +115,14 @@ public class BtreeTest {
                 fail("Search operation failed: " + e.getMessage());
             }
         }
+        double endTime = System.currentTimeMillis();
+        double fTime = (endTime - startTime) / (double)1000;
+        System.out.println("test testInsertAndSearchBigWithSplit done in: " + fTime + "s");
     }
 
     @Test
     public void testInsertAndSearchBigRev() {
+        double startTime = (double) System.currentTimeMillis();
         int itr = 1_000_000;
         int[] keys = new int[itr];
         for (int i =0; i < itr; i ++) {
@@ -131,6 +148,10 @@ public class BtreeTest {
                 fail("Insert operation failed: " + e.getMessage());
             }
         }
+
+        double endTime = System.currentTimeMillis();
+        double fTime = (endTime - startTime) / (double)1000;
+        System.out.println("test testInsertAndSearchBigRev done in: " + fTime + "s");
 
     }
 
@@ -173,7 +194,8 @@ public class BtreeTest {
         endTime = System.currentTimeMillis();
         double readTime = (endTime - startTime) / (double)1000;
         System.out.println("reading done in: " + readTime + "s");
-        System.out.println("test testInsertAndSearchBigRandom  done in: " + insertTime + readTime + "s");
+        readTime += insertTime;
+        System.out.println("test testInsertAndSearchBigRandom  done in: " + readTime + "s");
     }
 
     @Test
@@ -209,5 +231,34 @@ public class BtreeTest {
         endTime = System.currentTimeMillis();
         double fTime = (endTime - startTime) / (double)1000;
         System.out.println("test testInsertAndSearchBigRandomSwap  done in: " + fTime + "s");
+    }
+
+    @Test
+    public void testCursur() throws Exception{
+        int itr = 1_000_000;
+        double startTime = (double) System.currentTimeMillis();
+
+        for (int i = 0; i < itr; i ++) {
+            try {
+                btree.insert(i, i);
+            } catch (Exception e) {
+                System.out.println(i);
+                e.printStackTrace();
+                fail("Insert operation failed: " + e.getMessage());
+            }
+        }
+
+        int i = 0;
+        for (Cursor<Integer, Integer> cursor = btree.begin(); !cursor.isEnd(); cursor.next()) {
+            Cursor<Integer, Integer>.Pair<Integer, Integer> curr = cursor.get();
+            assertEquals(i, curr.first.intValue());
+            assertEquals(i, curr.second.intValue());
+            i ++;
+        }
+
+        double endTime = System.currentTimeMillis();
+        endTime = System.currentTimeMillis();
+        double fTime = (endTime - startTime) / (double)1000;
+        System.out.println("test testCursur done in: " + fTime + "s");
     }
 }
