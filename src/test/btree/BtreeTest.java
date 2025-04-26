@@ -22,7 +22,7 @@ public class BtreeTest {
     
     private Btree<Integer, Integer> btree;
     private BufferPool bufferPool;
-    private DiskManeger diskManager;
+    private DiskManager diskManager;
     private static final int MAX_PAGES = 3000; // Example max pages
     private static final int K = 10;
     private static final String btreeFilePath = "test.btree"; // Example file path for the B-tree
@@ -30,7 +30,7 @@ public class BtreeTest {
     public void setUp() {
         CleanUp();
         // Initialize the DiskManager
-        diskManager = new DiskManeger();
+        diskManager = new DiskManager();
         // Initialize the buffer pool with a size of 10 pages
         bufferPool = new BufferPool(MAX_PAGES, K, diskManager);
         // Initialize the B-tree 

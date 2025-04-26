@@ -8,7 +8,7 @@ import java.util.Map;
 import java.io.Closeable;
 import java.util.concurrent.BlockingQueue;
 
-public class DiskManeger implements Closeable {
+public class DiskManager implements Closeable {
     
     private Map<String, DiskFile> files;
     private int fileCount;
@@ -20,7 +20,7 @@ public class DiskManeger implements Closeable {
      * defualt constructre
      * todo: make new constructors based on a config 
      */
-    public DiskManeger() throws NullPointerException {
+    public DiskManager() throws NullPointerException {
         this.files = new ConcurrentHashMap<String, DiskFile>();
         this.fileCount = 0;
         this.requestQueue = new LinkedBlockingQueue<DiskRequest>(100); // capped to 100 requests

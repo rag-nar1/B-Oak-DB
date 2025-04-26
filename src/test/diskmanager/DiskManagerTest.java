@@ -1,6 +1,6 @@
 package test.diskmanager;
 
-import diskmanager.DiskManeger;
+import diskmanager.DiskManager;
 import diskmanager.DiskRequest;
 
 import java.io.IOException;
@@ -11,13 +11,13 @@ import org.junit.After;
 import static org.junit.Assert.*;
 
 public class DiskManagerTest {
-    private DiskManeger diskManager;
+    private DiskManager diskManager;
     private static final String TEST_FILE = "test.db";
     private static final int PAGE_SIZE = 4096;
 
     @Before
     public void setUp() throws Exception {
-        diskManager = new DiskManeger();
+        diskManager = new DiskManager();
     }
     
     

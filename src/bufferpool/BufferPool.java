@@ -14,7 +14,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.AbstractMap.SimpleEntry;
 
-import diskmanager.DiskManeger;
+import diskmanager.DiskManager;
 import diskmanager.DiskRequest;
 
 public class BufferPool implements Closeable {
@@ -28,27 +28,27 @@ public class BufferPool implements Closeable {
     private int framesNumber;
     private int k;
     private Replacer replacer;
-    private DiskManeger diskManeger;
+    private DiskManager diskManager;
     private Frame[] frames;
     private Map<PageId, Integer> pages;
     private List<Integer> freeFrames;
     private Map<String, SortedSet<Long>> deallocatedPages;
     private Lock bpmLatch;
 
-    public BufferPool(int size, int k, DiskManeger diskManeger) {
+    public BufferPool(int size, int k, DiskManager diskManager) {
         if (k < 0) {
             throw new IllegalArgumentException("k must be positive");
         }
         if (size <= 0) {
             throw new IllegalArgumentException("size must be positive");
         }
-        if (diskManeger == null) {
+        if (diskManager == null) {
             throw new NullPointerException("disk manager can not be null");
         }
         framesNumber = size;
         this.k = k;
         this.replacer = new Replacer(this.k);
-        this.diskManeger = diskManeger;
+        this.diskManager = diskManager;
         frames = new Frame[framesNumber];
         freeFrames = new LinkedList<Integer>();
         pages = new HashMap<PageId, Integer>();
@@ -82,7 +82,7 @@ public class BufferPool implements Closeable {
             }
         }
         // close the disk manager
-        diskManeger.close();
+        diskManager.close();
         // invalidate the buffer pool
         for (int i = 0; i < framesNumber; i++) {
             frames[i] = null;
@@ -94,7 +94,7 @@ public class BufferPool implements Closeable {
         bpmLatch = null;
         replacer = null;
         framesNumber = -1;
-        diskManeger = null;
+        diskManager = null;
     }
 
     /**
@@ -117,7 +117,7 @@ public class BufferPool implements Closeable {
             }
         }
         bpmLatch.unlock();
-        return diskManeger.allocatePage(fileName);
+        return diskManager.allocatePage(fileName);
     }
 
     /**
@@ -132,7 +132,7 @@ public class BufferPool implements Closeable {
     private boolean diskOp(Frame frame, boolean isWrite) throws InterruptedException, NullPointerException, ExecutionException {
         DiskRequest request = new DiskRequest(frame.getFileName(), frame.getPageId(),frame.getData(), isWrite);
         CompletableFuture<Boolean> finish = request.getFuture();
-        diskManeger.pushRequest(request);
+        diskManager.pushRequest(request);
         return finish.get();
     }
 
@@ -188,7 +188,7 @@ public class BufferPool implements Closeable {
                 return false;
             }
         }
-        if (diskManeger.getPageCount(fileName) <= pageId) {
+        if (diskManager.getPageCount(fileName) <= pageId) {
             return false;
         }
         return true;
