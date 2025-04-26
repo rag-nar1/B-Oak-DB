@@ -1,6 +1,5 @@
 package btree;
 
-
 import java.util.ArrayDeque;
 import java.util.Deque;
 
@@ -15,11 +14,12 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
     private final String fileName;
     private final Class<KeyType> keyType;
     private final Class<ValueType> valueType;
-    
+
     private long headerPageId;
     private BufferPool bufferPool;
 
-    public Btree(Class<KeyType> keyType, Class<ValueType> valueType, String fileName,long headerPageId , BufferPool bufferPool) {
+    public Btree(Class<KeyType> keyType, Class<ValueType> valueType, String fileName, long headerPageId,
+            BufferPool bufferPool) {
         this.fileName = fileName;
         this.keyType = keyType;
         this.valueType = valueType;
@@ -34,8 +34,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
                 header.setRootPageId(Globals.INVALID_PAGE_ID);
                 header.setHeight((short) 0);
                 guard.close();
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 throw new RuntimeException("Error reading header page", e);
             }
         } else {
@@ -78,17 +77,19 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
             // if we are not at the leaf node level, we need to find the child node
             InternalNode<KeyType> currentNode = new InternalNode<>(keyType, currentGuard.getData());
             ctx.addReadGuard(currentGuard);
+            if (ctx.readGuards.size() != 1) {
+                guard = ctx.popBackRead();
+            }
+            guard.close();
             long childPageId = currentNode.getChildForKey(key);
             currentPageId = childPageId;
             lvl++;
         }
-        
-        // release the header guard
-        guard.close();
+        ctx.release();
         return value;
     }
-    
-    public boolean insert(KeyType key, ValueType value) throws Exception{
+
+    public boolean insert(KeyType key, ValueType value) throws Exception {
         // todo: add optimistic inserting
         // check if the B+ tree is empty
         Context ctx = new Context();
@@ -117,11 +118,12 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
         // get the root node
         long currentPageId = rootPageId;
         int lvl = 1;
-        while(true) {
+        while (true) {
             WriteGuard currentGuard = bufferPool.getWriteGuard(fileName, currentPageId);
             if (lvl == header.getHeight()) { // we are at the leaf node level
                 ctx.addWriteGuard(currentGuard);
-                LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType, currentGuard.getDataMut());
+                LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType,
+                        currentGuard.getDataMut());
                 if (currentNode.insert(key, value)) { // if there is space in the node insert and we are done
                     ctx.release();
                     return true;
@@ -130,17 +132,19 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
             }
             // if we are not at the leaf node level, we need to find the child node
             InternalNode<KeyType> currentNode = new InternalNode<>(keyType, currentGuard.getDataMut());
-            // relase the locks over the above nodes since we are not going to split farther than this
-            if (currentNode.getKeysN() < currentNode.getMaxKeysN()) { 
+            // relase the locks over the above nodes since we are not going to split farther
+            // than this
+            if (currentNode.getKeysN() < currentNode.getMaxKeysN()) {
                 ctx.release();
             }
             ctx.addWriteGuard(currentGuard);
             long childPageId = currentNode.getChildForKey(key);
             currentPageId = childPageId;
-            lvl ++;
+            lvl++;
         }
 
-        // we are at the leaf node level and we need to split the node and propagate the split up
+        // we are at the leaf node level and we need to split the node and propagate the
+        // split up
         // get the leaf node
         WriteGuard currentGuard = ctx.popFrontWrite();
         LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType, currentGuard.getDataMut());
@@ -169,11 +173,11 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
             newRoot.setValue(1, newNode.getPageId());
             newRoot.setKey(1, currentNode.getKey(currentNode.getKeysN() - 1));
             newRoot.setKeysN((short) 2);
-            
+
             // update the header
             header.setRootPageId(newRootPageId);
             header.setHeight((short) (header.getHeight() + 1));
-            
+
             newRootGuard.close();
             newNodeguard.close();
             currentGuard.close();
@@ -194,7 +198,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
         currentGuard.close();
         newNodeguard.close();
         // we need to propagate the split up
-        while(!ctx.writeGuardIsEmpty()) {
+        while (!ctx.writeGuardIsEmpty()) {
             WriteGuard currentInternalGuard = ctx.popFrontWrite();
             InternalNode<KeyType> current = new InternalNode<>(keyType, currentInternalGuard.getDataMut());
             // check if the parent node is full
@@ -236,7 +240,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
                 newRoot.setValue(1, newInternalNode.getPageId());
                 newRoot.setKey(1, newInternalNode.getKey(0));
                 newRoot.setKeysN((short) 2);
-                
+
                 // update the header
                 header.setRootPageId(newRootPageId);
                 header.setHeight((short) (header.getHeight() + 1));
@@ -262,7 +266,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
         ctx.release();
         return true;
     }
-    
+
     // getters and setters
     public boolean isEmpty() {
         try {
@@ -299,7 +303,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
             throw new RuntimeException("Error getting root page ID", e);
         }
     }
-   
+
     public String getFileName() {
         return fileName;
     }
@@ -318,6 +322,10 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
 
     public Class<ValueType> getValueType() {
         return valueType;
+    }
+
+    public BufferPool getBufferPool() {
+        return bufferPool;
     }
 
     private class Context {
@@ -383,7 +391,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
 
         public WriteGuard popBackWrite() {
             return writeGuards.removeLast();
-        }   
+        }
 
         public ReadGuard popBackRead() {
             return readGuards.removeLast();
@@ -402,5 +410,42 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
         }
     }
 
-   
+    // cursor
+
+    public Cursor<KeyType, ValueType> begin() throws Exception {
+        Context ctx = new Context();
+        ReadGuard guard = bufferPool.getReadGuard(fileName, headerPageId);
+        BtreeHeader header = new BtreeHeader(guard.getData());
+        if (header.getRootPageId() == Globals.INVALID_PAGE_ID) {
+            guard.close();
+            return null; // the tree is empty
+        }
+
+        long rootPageId = header.getRootPageId();
+        long currentPageId = rootPageId;
+        int lvl = 1;
+        Cursor<KeyType, ValueType> itr;
+        while (true) {
+            ReadGuard currentGuard = bufferPool.getReadGuard(fileName, currentPageId);
+            if (lvl == header.getHeight()) { // we are at the leaf node level
+                LeafNode<KeyType, ValueType> node = new LeafNode<KeyType, ValueType>(keyType, valueType,
+                        guard.getData());
+                itr = new Cursor<KeyType, ValueType>(this, guard, node);
+                break; // we are done
+            }
+            // if we are not at the leaf node level, we need to find the child node
+            InternalNode<KeyType> currentNode = new InternalNode<>(keyType, currentGuard.getData());
+            ctx.addReadGuard(currentGuard);
+            if (ctx.readGuards.size() != 1) {
+                guard = ctx.popBackRead();
+            }
+            guard.close();
+            long childPageId = currentNode.getValue(0);
+            currentPageId = childPageId;
+            lvl++;
+        }
+        ctx.release();
+        return itr;
+    }
+
 }
