@@ -15,7 +15,7 @@ import org.junit.After;
 import bufferpool.*;
 import diskmanager.DiskManager;
 public class BufferPoolTest {
-    private static final int bufferPoolSize = 1000;
+    private static final int bufferPoolSize = 2000;
     private static final int kDistance = 3;
     private static final String fileName = "test.db";
     private BufferPool bufferPool;
@@ -249,6 +249,7 @@ public class BufferPoolTest {
                 readData.get(readDatabuffer);
                 readGuard.close();
             } catch (Exception e) {
+                e.printStackTrace();
                 fail("Exception should not be thrown: " + e.getMessage());
             }
         }

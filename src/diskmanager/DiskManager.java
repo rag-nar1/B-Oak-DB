@@ -86,16 +86,16 @@ public class DiskManager implements Closeable {
                             file.writePage(currentRequest.pageID, currentRequest.data);
                             currentRequest.finish.complete(true);
                         } catch (IOException e) {
-                            Thread.currentThread().interrupt(); // Restore interrupted status
                             e.printStackTrace(); // Log the exception
+                            Thread.currentThread().interrupt(); // Restore interrupted status
                         }
                     } else {
                         try {
                             file.readPage(currentRequest.pageID, currentRequest.data);
                             currentRequest.finish.complete(true);
                         } catch (IOException e) {
-                            Thread.currentThread().interrupt(); // Restore interrupted status
                             e.printStackTrace(); // Log the exception
+                            Thread.currentThread().interrupt(); // Restore interrupted status
                         }
                     }
 
@@ -125,13 +125,12 @@ public class DiskManager implements Closeable {
      * @throws NullPointerException if used after a close call
      */
     public long allocatePage(String fileName) throws IOException, NullPointerException {
-        DiskFile file = files.get(fileName);
-        if (file == null) {
-            file = new DiskFile(storageDir + fileName);
+        if (!files.containsKey(fileName)) {
+            DiskFile file = new DiskFile(storageDir + fileName);
             files.put(fileName, file);
             fileCount++;
         }
-        return file.allocatePage();
+        return files.get(fileName).allocatePage();
     }
 
     /**

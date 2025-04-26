@@ -1,5 +1,6 @@
 package bufferpool;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -19,7 +20,7 @@ public class Frame {
         this.frameId = frameId;
         this.data = new byte[Globals.PAGE_SIZE];
         pinCount = new AtomicInteger();
-        latch = new ReentrantReadWriteLock();
+        latch = new ReentrantReadWriteLock(true);
     }
     
     public Frame(int frameId, int pageId, String fileName) {
@@ -28,7 +29,7 @@ public class Frame {
         this.fileName = fileName;
         this.data = new byte[Globals.PAGE_SIZE];
         pinCount = new AtomicInteger();
-        latch = new ReentrantReadWriteLock();
+        latch = new ReentrantReadWriteLock(true);
     }
 
     public void newFrame(long pageId, String fileName) {
@@ -74,12 +75,20 @@ public class Frame {
         this.dirty = dirty;
     }
     
-    public void lockRead() {
-        latch.readLock().lock();
+    public boolean lockRead() {
+        try {
+            return latch.readLock().tryLock(10, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
-    public void lockWrite() {
-        latch.writeLock().lock();
+    public boolean lockWrite() {
+        try {
+            return latch.writeLock().tryLock(50, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public void unlockRead() {

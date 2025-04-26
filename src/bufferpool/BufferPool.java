@@ -16,6 +16,7 @@ import java.util.AbstractMap.SimpleEntry;
 
 import diskmanager.DiskManager;
 import diskmanager.DiskRequest;
+import globals.Globals;
 
 public class BufferPool implements Closeable {
 
@@ -240,6 +241,10 @@ public class BufferPool implements Closeable {
             } else {
                 guard = new ReadGuard(frameId, frame, replacer, bpmLatch);
             }
+
+            if (guard.getFrameId() == Globals.INVALID_Frame_ID) {
+                return null;
+            }
             return guard;
         }
 
@@ -265,6 +270,9 @@ public class BufferPool implements Closeable {
         } else {
             guard = new ReadGuard(frameId, frame, replacer, bpmLatch);
         }
+        if (guard.getFrameId() == Globals.INVALID_Frame_ID) {
+            return null;
+        }
         return guard;
     }
 
@@ -280,6 +288,9 @@ public class BufferPool implements Closeable {
      */
     public ReadGuard getReadGuard(String fileName, long pageId) throws Exception, InterruptedException, NullPointerException, ExecutionException {
         Guard guard = getGuard(fileName, pageId, false);
+        if (guard == null) {
+           return null;
+        }
         ReadGuard readGuard = (ReadGuard) guard;
         return readGuard;
     }
@@ -296,6 +307,9 @@ public class BufferPool implements Closeable {
      */
     public WriteGuard getWriteGuard(String fileName, long pageId) throws Exception, InterruptedException, NullPointerException, ExecutionException, IllegalArgumentException {
         Guard guard = getGuard(fileName, pageId, true);
+        if(guard == null) {
+           return null;
+        }
         WriteGuard writeGuard = (WriteGuard) guard;
         return writeGuard;
     }

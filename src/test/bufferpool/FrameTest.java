@@ -145,14 +145,18 @@ public class FrameTest {
         
         // Start writer thread
         Thread writer = new Thread(() -> {
-            frame.lockWrite();
-            writerStarted.countDown();
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } finally {
-                frame.unlockWrite();
+           try{
+                frame.lockWrite();
+                writerStarted.countDown();
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    frame.unlockWrite();
+                }
+            } catch (Exception e) {
+                fail();
             }
         });
         

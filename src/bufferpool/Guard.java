@@ -22,5 +22,9 @@ public class Guard{
     public ByteBuffer getData() {
         return ByteBuffer.wrap(frame.getData()).asReadOnlyBuffer();
     }
+
+    public int getFrameId() {
+        return frameId;
+    }
 }
 

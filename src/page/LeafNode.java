@@ -123,6 +123,9 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
             // create a new leaf node
             long newPageId = bufferPool.allocateNewPage(fileName);
             WriteGuard newGuard = bufferPool.getWriteGuard(fileName, newPageId);
+            if(newGuard == null) {
+               return null;
+            }
             LeafNode<KeyType, ValueType> newLeafNode = new LeafNode<>(keyType, valueType, newGuard.getDataMut());
             newLeafNode.setLeaf(true);
             newLeafNode.setPageId(newPageId);

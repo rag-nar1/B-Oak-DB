@@ -53,221 +53,293 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
     }
 
     public ValueType get(KeyType key) throws Exception {
-        Context ctx = new Context();
-        ReadGuard guard = bufferPool.getReadGuard(fileName, headerPageId);
-        BtreeHeader header = new BtreeHeader(guard.getData());
-        if (header.getRootPageId() == Globals.INVALID_PAGE_ID) {
-            guard.close();
-            return null; // the tree is empty
-        }
-
-        long rootPageId = header.getRootPageId();
-        long currentPageId = rootPageId;
-        int lvl = 1;
-        ValueType value = null;
-        while (true) {
-            ReadGuard currentGuard = bufferPool.getReadGuard(fileName, currentPageId);
-            if (lvl == header.getHeight()) { // we are at the leaf node level
-                ctx.addReadGuard(currentGuard);
-                if (ctx.readGuards.size() > 1) {
-                    guard = ctx.popBackRead();
-                }
+        out: while (true) {
+            Context ctx = new Context();
+            ReadGuard guard = bufferPool.getReadGuard(fileName, headerPageId);
+            if (guard == null) {
+                Thread.sleep(10);
+                continue out;
+            }
+            BtreeHeader header = new BtreeHeader(guard.getData());
+            if (header.getRootPageId() == Globals.INVALID_PAGE_ID) {
                 guard.close();
-                LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType, currentGuard.getData());
-                value = currentNode.get(key);
-                break; // we are done
+                return null; // the tree is empty
             }
-            // if we are not at the leaf node level, we need to find the child node
-            InternalNode<KeyType> currentNode = new InternalNode<>(keyType, currentGuard.getData());
-            ctx.addReadGuard(currentGuard);
-            if (ctx.readGuards.size() > 1) {
-                guard = ctx.popBackRead();
+            ctx.setHeaderReadGuard(guard);
+            long rootPageId = header.getRootPageId();
+            long currentPageId = rootPageId;
+            int lvl = 1;
+            while (true) {
+                ReadGuard currentGuard = bufferPool.getReadGuard(fileName, currentPageId);
+                if (currentGuard == null) {
+                    ctx.release();
+                    Thread.sleep(10);
+                    continue out;
+                }
+                ctx.addReadGuard(currentGuard);
+                if (lvl == header.getHeight()) { // we are at the leaf node level
+                    LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType,
+                            currentGuard.getData());
+                    ValueType value = currentNode.get(key);
+                    ctx.release();
+                    return value;
+                }
+                // if we are not at the leaf node level, we need to find the child node
+                InternalNode<KeyType> currentNode = new InternalNode<>(keyType, currentGuard.getData());
+                long childPageId = currentNode.getChildForKey(key);
+                currentPageId = childPageId;
+                lvl++;
+                ctx.release();
             }
-            guard.close();
-            long childPageId = currentNode.getChildForKey(key);
-            currentPageId = childPageId;
-            lvl++;
         }
-        ctx.release();
-        return value;
     }
 
     public boolean insert(KeyType key, ValueType value) throws Exception {
-        // todo: add optimistic inserting
-        // check if the B+ tree is empty
-        Context ctx = new Context();
-        WriteGuard guard = bufferPool.getWriteGuard(fileName, headerPageId);
-        BtreeHeader header = new BtreeHeader(guard.getDataMut());
-        if (header.getRootPageId() == Globals.INVALID_PAGE_ID) {
-            // create a new B+ tree
-            long newRootPageId = bufferPool.allocateNewPage(fileName);
-            WriteGuard newRootGuard = bufferPool.getWriteGuard(fileName, newRootPageId);
-            LeafNode<KeyType, ValueType> newRoot = new LeafNode<>(keyType, valueType, newRootGuard.getDataMut());
-            newRoot.setLeaf(true);
-            newRoot.setNextLeafNode(Globals.INVALID_PAGE_ID);
-            newRoot.setPageId(newRootPageId);
-
-            header.setRootPageId(newRootPageId);
-            header.setHeight((short) 1);
-
-            newRoot.insert(key, value);
-            newRootGuard.close();
-            guard.close();
-            return true;
-        }
-        ctx.setHeaderWriteGuard(guard);
-        // get the root page id
-        long rootPageId = header.getRootPageId();
-        // get the root node
-        long currentPageId = rootPageId;
-        int lvl = 1;
-        while (true) {
-            WriteGuard currentGuard = bufferPool.getWriteGuard(fileName, currentPageId);
-            if (lvl == header.getHeight()) { // we are at the leaf node level
-                ctx.addWriteGuard(currentGuard);
-                LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType,
-                        currentGuard.getDataMut());
-                if (currentNode.insert(key, value)) { // if there is space in the node insert and we are done
-                    ctx.release();
-                    return true;
-                }
-                break; // if there is no space in the node we need to split
+        out: while (true) {
+            if (optimisticInsert(key, value)) {
+                return true;
             }
-            // if we are not at the leaf node level, we need to find the child node
-            InternalNode<KeyType> currentNode = new InternalNode<>(keyType, currentGuard.getDataMut());
-            // relase the locks over the above nodes since we are not going to split farther
-            // than this
-            if (currentNode.getKeysN() < currentNode.getMaxKeysN()) {
-                ctx.release();
+            // check if the B+ tree is empty
+            Context ctx = new Context();
+            WriteGuard guard = bufferPool.getWriteGuard(fileName, headerPageId);
+            if (guard == null) {
+                Thread.sleep(10);
+                continue;
             }
-            ctx.addWriteGuard(currentGuard);
-            long childPageId = currentNode.getChildForKey(key);
-            currentPageId = childPageId;
-            lvl++;
-        }
-
-        // we are at the leaf node level and we need to split the node and propagate the
-        // split up
-        // get the leaf node
-        WriteGuard currentGuard = ctx.popFrontWrite();
-        LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType, currentGuard.getDataMut());
-        WriteGuard newNodeguard = currentNode.split(bufferPool, fileName);
-        if (newNodeguard == null) {
-            ctx.release();
-            return false; // the node was not split
-        }
-        LeafNode<KeyType, ValueType> newNode = new LeafNode<>(keyType, valueType, newNodeguard.getDataMut());
-        // insert the key into the correct node
-        if (key.compareTo(currentNode.getKey(currentNode.getKeysN() - 1)) <= 0) {
-            currentNode.insert(key, value);
-        } else {
-            newNode.insert(key, value);
-        }
-        // check if the split node was the root
-        if (currentNode.getPageId() == header.getRootPageId()) {
-            // create a new root node
-            long newRootPageId = bufferPool.allocateNewPage(fileName);
-            WriteGuard newRootGuard = bufferPool.getWriteGuard(fileName, newRootPageId);
-            InternalNode<KeyType> newRoot = new InternalNode<>(keyType, newRootGuard.getDataMut());
-            newRoot.setLeaf(false);
-            newRoot.setPageId(newRootPageId);
-            // set the two child nodes
-            newRoot.setValue(0, currentNode.getPageId());
-            newRoot.setValue(1, newNode.getPageId());
-            newRoot.setKey(1, currentNode.getKey(currentNode.getKeysN() - 1));
-            newRoot.setKeysN((short) 2);
-
-            // update the header
-            header.setRootPageId(newRootPageId);
-            header.setHeight((short) (header.getHeight() + 1));
-
-            newRootGuard.close();
-            newNodeguard.close();
-            currentGuard.close();
-            ctx.release();
-            return true;
-        }
-
-        // we update the parent node to point to the new node rather than the old node
-        // get the parent node
-        WriteGuard parentGuard = ctx.peekFrontWrite();
-        InternalNode<KeyType> parentNode = new InternalNode<>(keyType, parentGuard.getDataMut());
-        int index = parentNode.getKeyIdx(key);
-        // update the child node
-        parentNode.setValue(index - 1, newNode.getPageId());
-
-        key = currentNode.getKey(currentNode.getKeysN() - 1);
-        long propagatePageId = currentNode.getPageId();
-        currentGuard.close();
-        newNodeguard.close();
-        // we need to propagate the split up
-        while (!ctx.writeGuardIsEmpty()) {
-            WriteGuard currentInternalGuard = ctx.popFrontWrite();
-            InternalNode<KeyType> current = new InternalNode<>(keyType, currentInternalGuard.getDataMut());
-            // check if the parent node is full
-            if (current.getKeysN() < current.getMaxKeysN()) {
-                // insert the new key and child node
-                current.insert(key, propagatePageId);
-                currentInternalGuard.close();
-                break;
-            }
-            // if the parent node is full we need to split it
-            // create a new node
-            WriteGuard newInternalNodeGuard = current.split(bufferPool, fileName);
-            if (newInternalNodeGuard == null) {
-                currentInternalGuard.close();
-                break; // the node was not split
-            }
-            InternalNode<KeyType> newInternalNode = new InternalNode<>(keyType, newInternalNodeGuard.getDataMut());
-            // insert the key value
-            if (key.compareTo(current.getKey(current.getKeysN() - 1)) <= 0) {
-                current.insert(key, propagatePageId);
-            } else {
-                newInternalNode.insert(key, propagatePageId);
-            }
-            // check if the split node was the root
-            if (current.getPageId() == header.getRootPageId()) {
-                // create a new root node
-
+            BtreeHeader header = new BtreeHeader(guard.getDataMut());
+            if (header.getRootPageId() == Globals.INVALID_PAGE_ID) {
+                // create a new B+ tree
                 long newRootPageId = bufferPool.allocateNewPage(fileName);
-
                 WriteGuard newRootGuard = bufferPool.getWriteGuard(fileName, newRootPageId);
-
-                InternalNode<KeyType> newRoot = new InternalNode<>(keyType, newRootGuard.getDataMut());
-
-                newRoot.setLeaf(false);
+                if (newRootGuard == null) {
+                    guard.close();
+                    Thread.sleep(10);
+                    continue;
+                }
+                LeafNode<KeyType, ValueType> newRoot = new LeafNode<>(keyType, valueType, newRootGuard.getDataMut());
+                newRoot.setLeaf(true);
+                newRoot.setNextLeafNode(Globals.INVALID_PAGE_ID);
                 newRoot.setPageId(newRootPageId);
 
+                header.setRootPageId(newRootPageId);
+                header.setHeight((short) 1);
+
+                newRoot.insert(key, value);
+                newRootGuard.close();
+                guard.close();
+                return true;
+            }
+            ctx.setHeaderWriteGuard(guard);
+            // get the root page id
+            long rootPageId = header.getRootPageId();
+            // get the root node
+            long currentPageId = rootPageId;
+            int lvl = 1;
+            while (true) {
+                WriteGuard currentGuard = bufferPool.getWriteGuard(fileName, currentPageId);
+                if (currentGuard == null) {
+                    ctx.release();
+                    Thread.sleep(10);
+                    continue out;
+                }
+                if (lvl == header.getHeight()) { // we are at the leaf node level
+                    ctx.addWriteGuard(currentGuard);
+                    LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType,
+                            currentGuard.getDataMut());
+                    if (currentNode.insert(key, value)) { // if there is space in the node insert and we are done
+                        ctx.release();
+                        return true;
+                    }
+                    break; // if there is no space in the node we need to split
+                }
+                // if we are not at the leaf node level, we need to find the child node
+                InternalNode<KeyType> currentNode = new InternalNode<>(keyType, currentGuard.getDataMut());
+                // relase the locks over the above nodes since we are not going to split farther
+                // than this
+                if (currentNode.getKeysN() < currentNode.getMaxKeysN()) {
+                    ctx.release();
+                }
+                ctx.addWriteGuard(currentGuard);
+                long childPageId = currentNode.getChildForKey(key);
+                currentPageId = childPageId;
+                lvl++;
+            }
+
+            // we are at the leaf node level and we need to split the node and propagate the
+            // split up
+            // get the leaf node
+            WriteGuard currentGuard = ctx.popFrontWrite();
+            LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType, currentGuard.getDataMut());
+            WriteGuard newNodeguard = currentNode.split(bufferPool, fileName);
+            if (newNodeguard == null) {
+                currentGuard.close();
+                ctx.release();
+                Thread.sleep(10);
+                continue;
+            }
+            LeafNode<KeyType, ValueType> newNode = new LeafNode<>(keyType, valueType, newNodeguard.getDataMut());
+            // insert the key into the correct node
+            if (key.compareTo(currentNode.getKey(currentNode.getKeysN() - 1)) <= 0) {
+                currentNode.insert(key, value);
+            } else {
+                newNode.insert(key, value);
+            }
+            // check if the split node was the root
+            if (currentNode.getPageId() == header.getRootPageId()) {
+                // create a new root node
+                long newRootPageId = bufferPool.allocateNewPage(fileName);
+                WriteGuard newRootGuard = bufferPool.getWriteGuard(fileName, newRootPageId);
+                InternalNode<KeyType> newRoot = new InternalNode<>(keyType, newRootGuard.getDataMut());
+                newRoot.setLeaf(false);
+                newRoot.setPageId(newRootPageId);
                 // set the two child nodes
-                newRoot.setValue(0, current.getPageId());
-                newRoot.setValue(1, newInternalNode.getPageId());
-                newRoot.setKey(1, newInternalNode.getKey(0));
+                newRoot.setValue(0, currentNode.getPageId());
+                newRoot.setValue(1, newNode.getPageId());
+                newRoot.setKey(1, currentNode.getKey(currentNode.getKeysN() - 1));
                 newRoot.setKeysN((short) 2);
 
                 // update the header
                 header.setRootPageId(newRootPageId);
                 header.setHeight((short) (header.getHeight() + 1));
-                currentInternalGuard.close();
-                newInternalNodeGuard.close();
-                break;
+
+                newNodeguard.close();
+                currentGuard.close();
+                newRootGuard.close();
+                ctx.release();
+                return true;
             }
 
-            // update the parent node to point to the new node rather than the old node
+            // we update the parent node to point to the new node rather than the old node
             // get the parent node
-            parentGuard = ctx.peekFrontWrite();
-            InternalNode<KeyType> parent = new InternalNode<>(keyType, parentGuard.getDataMut());
-            index = parent.getKeyIdx(key);
-            parent.setValue(index - 1, newInternalNode.getPageId());
+            WriteGuard parentGuard = ctx.peekFrontWrite();
+            InternalNode<KeyType> parentNode = new InternalNode<>(keyType, parentGuard.getDataMut());
+            int index = parentNode.getKeyIdx(key);
+            // update the child node
+            parentNode.setValue(index - 1, newNode.getPageId());
 
-            key = newInternalNode.getKey(0);
-            propagatePageId = current.getPageId();
-            currentInternalGuard.close();
-            newInternalNodeGuard.close();
+            key = currentNode.getKey(currentNode.getKeysN() - 1);
+            long propagatePageId = currentNode.getPageId();
+            newNodeguard.close();
+            currentGuard.close();
+            // we need to propagate the split up
+            while (!ctx.writeGuardIsEmpty()) {
+                WriteGuard currentInternalGuard = ctx.popFrontWrite();
+                InternalNode<KeyType> current = new InternalNode<>(keyType, currentInternalGuard.getDataMut());
+                // check if the parent node is full
+                if (current.getKeysN() < current.getMaxKeysN()) {
+                    // insert the new key and child node
+                    current.insert(key, propagatePageId);
+                    currentInternalGuard.close();
+                    break;
+                }
+                // if the parent node is full we need to split it
+                // create a new node
+                WriteGuard newInternalNodeGuard = current.split(bufferPool, fileName);
+                if (newInternalNodeGuard == null) {
+                    currentInternalGuard.close();
+                    break; // the node was not split
+                }
+                InternalNode<KeyType> newInternalNode = new InternalNode<>(keyType, newInternalNodeGuard.getDataMut());
+                // insert the key value
+                if (key.compareTo(current.getKey(current.getKeysN() - 1)) <= 0) {
+                    current.insert(key, propagatePageId);
+                } else {
+                    newInternalNode.insert(key, propagatePageId);
+                }
+                // check if the split node was the root
+                if (current.getPageId() == header.getRootPageId()) {
+                    // create a new root node
+
+                    long newRootPageId = bufferPool.allocateNewPage(fileName);
+
+                    WriteGuard newRootGuard = bufferPool.getWriteGuard(fileName, newRootPageId);
+
+                    InternalNode<KeyType> newRoot = new InternalNode<>(keyType, newRootGuard.getDataMut());
+
+                    newRoot.setLeaf(false);
+                    newRoot.setPageId(newRootPageId);
+
+                    // set the two child nodes
+                    newRoot.setValue(0, current.getPageId());
+                    newRoot.setValue(1, newInternalNode.getPageId());
+                    newRoot.setKey(1, newInternalNode.getKey(0));
+                    newRoot.setKeysN((short) 2);
+
+                    // update the header
+                    header.setRootPageId(newRootPageId);
+                    header.setHeight((short) (header.getHeight() + 1));
+                    currentInternalGuard.close();
+                    newInternalNodeGuard.close();
+                    newRootGuard.close();
+                    break;
+                }
+
+                // update the parent node to point to the new node rather than the old node
+                // get the parent node
+                parentGuard = ctx.peekFrontWrite();
+                InternalNode<KeyType> parent = new InternalNode<>(keyType, parentGuard.getDataMut());
+                index = parent.getKeyIdx(key);
+                parent.setValue(index - 1, newInternalNode.getPageId());
+
+                key = newInternalNode.getKey(0);
+                propagatePageId = current.getPageId();
+                currentInternalGuard.close();
+                newInternalNodeGuard.close();
+            }
+
+            // release the locks
+            ctx.release();
+            return true;
+        }
+    }
+
+    public boolean optimisticInsert(KeyType key, ValueType value) throws Exception {
+        Context ctx = new Context();
+        ReadGuard guard = bufferPool.getReadGuard(fileName, headerPageId);
+        if (guard == null) {
+            return false;
+        }
+        BtreeHeader header = new BtreeHeader(guard.getData());
+        if (header.getRootPageId() == Globals.INVALID_PAGE_ID) {
+            guard.close();
+            return false; // the tree is empty
         }
 
-        // release the locks
+        long rootPageId = header.getRootPageId();
+        long currentPageId = rootPageId;
+        int lvl = 1;
+        ctx.addReadGuard(guard);
+        while (true) {
+            if (lvl == header.getHeight()) { // we are at the leaf node level
+                WriteGuard currentGuard = bufferPool.getWriteGuard(fileName, currentPageId);
+                if (currentGuard == null) {
+                    ctx.release();
+                    return false;
+                }
+                LeafNode<KeyType, ValueType> currentNode = new LeafNode<>(keyType, valueType,
+                        currentGuard.getDataMut());
+                if (currentNode.insert(key, value)) {
+                    currentGuard.close();
+                    ctx.release();
+                    return true;
+                }
+                currentGuard.close();
+                break; // we are done
+            }
+            ReadGuard currentGuard = bufferPool.getReadGuard(fileName, currentPageId);
+            if (currentGuard == null) {
+                ctx.release();
+                return false;
+            }
+            ctx.addReadGuard(currentGuard);
+            // if we are not at the leaf node level, we need to find the child node
+            InternalNode<KeyType> currentNode = new InternalNode<>(keyType, currentGuard.getData());
+            long childPageId = currentNode.getChildForKey(key);
+            currentPageId = childPageId;
+            lvl++;
+        }
         ctx.release();
-        return true;
+        return false;
     }
 
     // getters and setters
@@ -333,6 +405,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
 
     private class Context {
         private WriteGuard headeWriteGuard;
+        private ReadGuard headeReadGuard;
         private Deque<WriteGuard> writeGuards;
         private Deque<ReadGuard> readGuards;
 
@@ -349,6 +422,10 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
             this.headeWriteGuard = guard;
         }
 
+        public void setHeaderReadGuard(ReadGuard guard) {
+            this.headeReadGuard = guard;
+        }
+
         public WriteGuard getHeaderWriteGuard() {
             return headeWriteGuard;
         }
@@ -361,6 +438,13 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
             if (headeWriteGuard != null) {
                 headeWriteGuard.close();
                 headeWriteGuard = null;
+            }
+        }
+
+        public void dropHeaderReadGuard() {
+            if (headeReadGuard != null) {
+                headeReadGuard.close();
+                headeReadGuard = null;
             }
         }
 
@@ -402,6 +486,7 @@ public class Btree<KeyType extends Comparable<KeyType>, ValueType> {
 
         public void release() {
             dropHeaderWriteGuard();
+            dropHeaderReadGuard();
             while (!writeGuards.isEmpty()) {
                 WriteGuard guard = writeGuards.pop();
                 guard.close();

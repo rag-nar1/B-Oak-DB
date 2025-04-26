@@ -40,14 +40,19 @@ public class DiskFile implements Closeable {
         pageCnt = fileSize / pageSize;
     }
 
-    public long allocatePage() throws IOException { // allocate a page and returns it's id
-        file.setLength(fileSize + pageSize);
+    public synchronized long allocatePage() throws IOException { // allocate a page and returns it's id
+        file.seek(fileSize);
+        byte[] data = new byte[Globals.PAGE_SIZE];
+        file.write(data);
         pageCnt ++;
         fileSize += pageSize;
         return pageCnt - 1;
     }
 
-    public byte[] readPage(long pageID) throws IOException {
+    public synchronized byte[] readPage(long pageID) throws IOException {
+        if(pageID >= pageCnt) {
+            throw new IOException("pageId: "+pageID);
+        }
         file.seek(pageID * pageSize);
         byte[] data = new byte[(int)pageSize];
         int readBytes = file.read(data);
@@ -57,15 +62,18 @@ public class DiskFile implements Closeable {
         return data;
     }
 
-    public void readPage(long pageID, byte[] data) throws IOException {
+    public synchronized void readPage(long pageID, byte[] data) throws IOException {
+        if(pageID >= pageCnt) {
+            throw new IOException("pageId: "+pageID);
+        }
         file.seek(pageID * pageSize);
         int readBytes = file.read(data);
         if (readBytes != (int)pageSize) {
-            throw new IOException();
+            throw new IOException("pageId: "+pageID+"read:"+readBytes);
         }
     }
 
-    public void writePage(long pageID, byte[] data) throws IOException {
+    public synchronized void writePage(long pageID, byte[] data) throws IOException {
         file.seek(pageID * pageSize);
         file.write(data);
     }
