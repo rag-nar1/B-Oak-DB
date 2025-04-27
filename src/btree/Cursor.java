@@ -38,15 +38,21 @@ public class Cursor<KeyType extends Comparable<KeyType>, ValueType> {
             end();
             return;
         }
+        while(true) {
+            ReadGuard nextGuard = bufferpool.getReadGuard(btree.getFileName(), nextPageId);
+            if (nextGuard == null) {
+                Thread.sleep(10);
+                continue;
+            }
+            LeafNode<KeyType, ValueType> nextNode = new LeafNode<>(btree.getKeyType(), btree.getValueType(),
+                    nextGuard.getData());
 
-        ReadGuard nextGuard = bufferpool.getReadGuard(btree.getFileName(), nextPageId);
-        LeafNode<KeyType, ValueType> nextNode = new LeafNode<>(btree.getKeyType(), btree.getValueType(),
-                nextGuard.getData());
-
-        node = nextNode;
-        guard.close();
-        guard = nextGuard;
-        index = 0;
+            node = nextNode;
+            guard.close();
+            guard = nextGuard;
+            index = 0;
+            break;
+        }
     }
 
     public void end() {

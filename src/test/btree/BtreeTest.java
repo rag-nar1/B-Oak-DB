@@ -282,17 +282,22 @@ public class BtreeTest {
         }
 
         int i = 0;
-        for (Cursor<Integer, Integer> cursor = btree.begin(); !cursor.isEnd(); cursor.next()) {
-            Cursor<Integer, Integer>.Pair<Integer, Integer> curr = cursor.get();
-            assertEquals(i, curr.first.intValue());
-            assertEquals(i, curr.second.intValue());
-            i++;
-        }
+        try {
+            for (Cursor<Integer, Integer> cursor = btree.begin(); !cursor.isEnd(); cursor.next()) {
+                Cursor<Integer, Integer>.Pair<Integer, Integer> curr = cursor.get();
+                assertEquals(i, curr.first.intValue());
+                assertEquals(i, curr.second.intValue());
+                i++;
+            }
 
-        double endTime = System.currentTimeMillis();
-        endTime = System.currentTimeMillis();
-        double fTime = (endTime - startTime) / (double) 1000;
-        System.out.println("test testCursur done in: " + fTime + "s");
+            double endTime = System.currentTimeMillis();
+            endTime = System.currentTimeMillis();
+            double fTime = (endTime - startTime) / (double) 1000;
+            System.out.println("test testCursur done in: " + fTime + "s");
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail();
+        }
     }
 
     @Test

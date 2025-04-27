@@ -92,17 +92,20 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         buffer.putLong(nextLeafNode);
     }
 
-    public boolean insert(KeyType key, ValueType value) {
+    public int insert(KeyType key, ValueType value) {
         if (keysN >= maxKeysN) {
-            return false; // node is full
+            return 0; // node is full
         }
         
         int index = keys.upperBound(key);
+        if (index > 0 && getKey(index - 1).compareTo(key) == 0) {
+            return -1; // key already exists
+        }
         keys.insert(index, key);
         values.insert(index, value);
         keysN++;
         writeHeader();
-        return true;
+        return 1;
     }
 
     public ValueType get(KeyType key) {
