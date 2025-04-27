@@ -297,7 +297,7 @@ public class BtreeTest {
 
     @Test
     public void testConcurrency() throws Exception {
-        int itrs = 5;
+        int itrs = 20;
         for (int itr = 1; itr <= itrs; itr ++) {
             setUp();
             double startTime = (double) System.currentTimeMillis();
@@ -338,7 +338,7 @@ public class BtreeTest {
                             int val = btree.get(key).intValue();
                             assertEquals(key, val);
                         } catch (Exception e) {
-                            System.out.println("thread " + end / op + ": ");
+                            System.out.println("thread " + end / op + ": expected ->" + key);
                             e.printStackTrace();
                             fail();
                         }
