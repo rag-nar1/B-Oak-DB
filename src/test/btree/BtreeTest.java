@@ -11,10 +11,8 @@ import globals.Globals;
 import org.junit.Before;
 import static org.junit.Assert.*;
 
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadInfo;
-import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.After;
@@ -40,35 +38,6 @@ public class BtreeTest {
         // Initialize the B-tree
         btree = new Btree<Integer, Integer>(Integer.class, Integer.class, btreeFilePath, Globals.INVALID_PAGE_ID,
                 bufferPool);
-        // monitor = new Thread(() -> {
-        //     ThreadMXBean tmxb = ManagementFactory.getThreadMXBean();
-        //     try {
-        //         while (!Thread.currentThread().isInterrupted()) {
-        //                 long[] ids = tmxb.findDeadlockedThreads();
-        //                 if (ids != null) {
-        //                     System.err.println("=== Deadlocked Threads ===");
-        //                     ThreadInfo[] threadInfos = tmxb.getThreadInfo(ids, true, true);
-        //                     if (threadInfos != null) {
-        //                         for (ThreadInfo info : threadInfos) {
-        //                             System.err.printf("Thread %s (id=%d) waiting for %s held by %s%n",
-        //                                             info.getThreadName(),
-        //                                             info.getThreadId(),
-        //                                             info.getLockName(),
-        //                                             info.getLockOwnerName());
-        //                             for (StackTraceElement ste : info.getStackTrace()) {
-        //                                 System.err.println("\t at " + ste);
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //                 return;
-        //             }
-        //             Thread.sleep(50);
-        //     } catch (InterruptedException ignored) {
-        //         // exit
-        //     }
-        // }, "Deadlock-Monitor");
-        // monitor.start();
     }
 
     @After
@@ -366,4 +335,75 @@ public class BtreeTest {
             System.out.println("test testConcurrency done itr "+ itr +" : " + fTime + "s");
         }
     }
+
+    @Test
+    public void testConcurrencyRand() throws Exception {
+        int itrs = 5;
+        for (int itr = 1; itr <= itrs; itr ++) {
+            setUp();
+            double startTime = (double) System.currentTimeMillis();
+
+            int writersCnt = 100;
+            int readersCnt = 100;
+            List<Thread> threads = new ArrayList<>();
+            int op = 10000;
+            for (int i = 0; i < writersCnt; i++) {
+                final int end = op * i;
+                Thread writer = new Thread(() -> {
+                    for (int key = end - op; key < end; key++) {
+                        try {
+                            btree.insert(key, key);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            fail();
+                        }
+                    }
+                });
+                threads.add(writer);
+            }
+            
+            Collections.shuffle(threads);
+            for(Thread thread: threads) {
+                thread.start();
+            }
+
+            for(Thread thread: threads) {
+                thread.join();
+            }
+            threads = new ArrayList<>();
+
+            for (int i = 0; i < readersCnt; i++) {
+                final int end = op * i;
+                Thread reader = new Thread(() -> {
+                    for (int key = end - op; key < end; key++) {
+                        try {
+                            int val = btree.get(key).intValue();
+                            assertEquals(key, val);
+                        } catch (Exception e) {
+                            System.out.println("thread " + end / op + ": expected ->" + key);
+                            e.printStackTrace();
+                            fail();
+                        }
+                    }
+                });
+                threads.add(reader);
+            }
+
+            Collections.shuffle(threads);
+            for(Thread thread: threads) {
+                thread.start();
+            }
+
+            for(Thread thread: threads) {
+                thread.join();
+            }
+
+            double endTime = System.currentTimeMillis();
+            endTime = System.currentTimeMillis();
+            double fTime = (endTime - startTime) / (double) 1000;
+            System.out.println("test testConcurrency done itr "+ itr +" : " + fTime + "s");
+        }
+    }
+
+   
 }
