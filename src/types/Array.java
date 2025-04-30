@@ -2,39 +2,33 @@ package types;
 
 import java.nio.ByteBuffer;
 
+import javax.naming.directory.InvalidAttributesException;
+
 // static array
-public class Array<T> {
-    public interface MemoryCodec<T> {
-        /** Number of bytes per element */
-        int byteSize();
+public class Array {
 
-        /** Read the element at array‐index i from the buffer */
-        T read(ByteBuffer buf);
-
-        /** Write the element at array‐index i into the buffer */
-        void write(ByteBuffer buf, T value);
-    }
-
-    private final ByteBuffer buf;
-    private final int offsetBytes;
     private int length;
     private final int capacity;
-    private final MemoryCodec<T> codec;
-
-    public Array(byte[] data, MemoryCodec<T> codec, int offsetBytes, int length, int capacity) {
+    private final int offsetBytes;
+    private final ByteBuffer buf;
+    private final Template template;
+    private final Compositekey keyUtil;
+    public Array(Template template, byte[] data, int offsetBytes, int length, int capacity) {
         this.buf = ByteBuffer.wrap(data);
         this.offsetBytes = offsetBytes;
         this.length = length;
         this.capacity = capacity;
-        this.codec = codec;
+        this.template = template;
+        this.keyUtil = new Compositekey(template);
     }
 
-    public Array(ByteBuffer data, MemoryCodec<T> codec, int offsetBytes, int length, int capacity) {
+    public Array(Template template, ByteBuffer data, int offsetBytes, int length, int capacity) {
         this.buf = data;
         this.offsetBytes = offsetBytes;
         this.length = length;
         this.capacity = capacity;
-        this.codec = codec;
+        this.template = template;
+        this.keyUtil = new Compositekey(template);
     }
 
     public int length() {
@@ -42,20 +36,20 @@ public class Array<T> {
     }
 
     /** Read element i (0 ≤ i < length) */
-    public T get(int i) {
+    public Compositekey get(int i) throws InvalidAttributesException {
         checkIndex(i);
-        buf.position(offsetBytes + i * codec.byteSize());
-        return codec.read(buf);
+        buf.position(offsetBytes + i * template.getByteSize());
+        return keyUtil.read(buf);   
     }
 
     /** Write element i (0 ≤ i < length) */
-    public void set(int i, T value) {
+    public void set(int i, Compositekey value) {
         checkIndex(i);
-        buf.position(offsetBytes + i * codec.byteSize());
-        codec.write(buf, value);
+        buf.position(offsetBytes + i * template.getByteSize());
+        value.write(buf);
     }
 
-    public void insert(int i, T value) {
+    public void insert(int i, Compositekey value) throws InvalidAttributesException {
         if (length + 1 > capacity)
             throw new ArrayIndexOutOfBoundsException("Array is full");
         checkIndex(i);
@@ -93,10 +87,6 @@ public class Array<T> {
 
     public int getCapacity() {
         return capacity;
-    }
-
-    public MemoryCodec<T> getCodec() {
-        return codec;
     }
 
     public void setLength(int length) {

@@ -2,12 +2,15 @@ package page;
 
 import java.nio.ByteBuffer;
 
+import javax.naming.directory.InvalidAttributesException;
+
 import bufferpool.BufferPool;
 import bufferpool.WriteGuard;
 import globals.Globals;
 import types.Array;
 import types.CompareableArray;
-import types.Types;
+import types.Compositekey;
+import types.Template;
 
 /**
  * InternalNode class represents an internal node in a B+ tree.
@@ -20,28 +23,34 @@ import types.Types;
  * for i = 0, key_0 = -inf
  * for i = N, key_N = +inf
  */
-public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeHeader {
+public class InternalNode extends TreeNodeHeader {
     private final short headerSize = 2 + 1 + 8; // 2 bytes for keysN, 1 byte for type, 8 bytes for pageId
-    private final Class<KeyType> keyType;
+    private final Template keyType;
+    private final Template valueType;
     private final short keySize;
+    private final short valueSize;
     private final short maxKeysN;
     private final short minKeysN;
-    private CompareableArray<KeyType> keys;
-    private Array<Long> values; // pageIds of the child nodes
+    private CompareableArray keys;
+    private Array values; // pageIds of the child nodes
     private ByteBuffer buffer;
 
-    public InternalNode(Class<KeyType> keyType, long pageId) {
+    public InternalNode(Template keyType, long pageId) {
         super(pageId, false);
         this.keyType = keyType;
-        keySize = (short) Types.getSize(keyType);
-        maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + 8));
+        this.valueType = new Template(Long.class);
+        keySize = keyType.getByteSize();
+        valueSize = valueType.getByteSize();
+        maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + valueSize));
         minKeysN = (short) (maxKeysN / 2);
     }
 
-    public InternalNode(Class<KeyType> keyType, ByteBuffer rawData) {
+    public InternalNode(Template keyType, ByteBuffer rawData) {
         this.keyType = keyType;
-        keySize = Types.getSize(keyType);
-        maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + Long.BYTES));
+        this.valueType = new Template(Long.class);
+        keySize = keyType.getByteSize();
+        valueSize = valueType.getByteSize();
+        maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + valueSize));
         minKeysN = (short) (maxKeysN / 2);
 
         buffer = rawData;
@@ -49,11 +58,11 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         this.isLeaf = buffer.get() == 1;
         this.pageId = buffer.getLong();
 
-        keys = new CompareableArray<KeyType>(rawData, Array.getCodec(keyType), headerSize, keysN, maxKeysN);
-        values = new Array<>(rawData, Array.getCodec(Long.class), headerSize + maxKeysN * keySize, keysN, maxKeysN);
+        keys = new CompareableArray(new Compositekey(keyType), rawData, headerSize, keysN, maxKeysN);
+        values = new Array(new Compositekey(valueType),rawData, headerSize + maxKeysN * keySize, keysN, maxKeysN);
     }
 
-    public InternalNode(Class<KeyType> keyType, byte[] rawData) {
+    public InternalNode(Template keyType, byte[] rawData) {
         this(keyType, ByteBuffer.wrap(rawData));
     }
 
@@ -64,17 +73,17 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         buffer.putLong(pageId);
     }
 
-    public long getChildForKey(KeyType key) {
+    public Compositekey getChildForKey(Compositekey key) throws InvalidAttributesException{
         int index = keys.lowerBound(key, 1);
-        return values.get(index - 1).longValue();
+        return values.get(index - 1);
     }
 
-    public int getKeyIdx(KeyType key) {
+    public int getKeyIdx(Compositekey key) throws InvalidAttributesException{
         int index = keys.lowerBound(key, 1);
         return index;
     }
 
-    public boolean insert(KeyType key, long value) {
+    public boolean insert(Compositekey key, Compositekey value) throws InvalidAttributesException {
         if (keysN == maxKeysN) {
             return false; // node is full
         }
@@ -94,7 +103,7 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         try {
             long newPageId = bufferPool.allocateNewPage(fileName);
             WriteGuard newGuard = bufferPool.getWriteGuard(fileName, newPageId);
-            InternalNode<KeyType> newNode = new InternalNode<>(keyType, newGuard.getDataMut());
+            InternalNode newNode = new InternalNode(keyType, newGuard.getDataMut());
             newNode.setLeaf(false);
             newNode.setPageId(newPageId);
 
@@ -102,8 +111,8 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
                 newNode.setKey(i - minKeysN, keys.get(i));
                 newNode.setValue(i - minKeysN, values.get(i));
             }
-            newNode.setKeysN((short) (keysN - minKeysN));
-            setKeysN(minKeysN);
+            newNode.setCompositekeyN((short) (keysN - minKeysN));
+            setCompositekeyN(minKeysN);
 
             newNode.writeHeader();
             writeHeader();
@@ -132,23 +141,23 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         return keySize;
     }
 
-    public Class<KeyType> getKeyType() {
+    public Template getKeyType() {
         return keyType;
     }
 
-    public CompareableArray<KeyType> getKeys() {
+    public CompareableArray getCompositekey() {
         return keys;
     }
 
-    public Array<Long> getValues() {
+    public Array getValues() {
         return values;
     }
 
-    public void setKeys(CompareableArray<KeyType> keys) {
+    public void setCompositekey(CompareableArray keys) {
         this.keys = keys;
     }
 
-    public void setValues(Array<Long> values) {
+    public void setValues(Array values) {
         this.values = values;
     }
 
@@ -164,7 +173,7 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         this.buffer = ByteBuffer.wrap(rawData);
     }
 
-    public void setKeysN(short keysN) {
+    public void setCompositekeyN(short keysN) {
         this.keysN = keysN;
         keys.setLength(keysN);
         values.setLength(keysN);
@@ -181,19 +190,19 @@ public class InternalNode<KeyType extends Comparable<KeyType>> extends TreeNodeH
         writeHeader();
     }
 
-    public KeyType getKey(int index) {
+    public Compositekey getKey(int index) throws InvalidAttributesException{
         return keys.get(index);
     }
 
-    public Long getValue(int index) {
+    public Compositekey getValue(int index) throws InvalidAttributesException{
         return values.get(index);
     }
 
-    public void setKey(int index, KeyType key) {
+    public void setKey(int index, Compositekey key) {
         keys.set(index, key);
     }
 
-    public void setValue(int index, Long value) {
+    public void setValue(int index, Compositekey value) {
         values.set(index, value);
     }
 }

@@ -1,26 +1,29 @@
 package btree;
 
+import javax.naming.directory.InvalidAttributesException;
+
 import bufferpool.BufferPool;
 import bufferpool.ReadGuard;
 import globals.Globals;
 import page.LeafNode;
+import types.Compositekey;
 
-public class Cursor<KeyType extends Comparable<KeyType>, ValueType> {
+public class Cursor {
     private ReadGuard guard;
     private BufferPool bufferpool;
-    private Btree<KeyType, ValueType> btree;
-    private LeafNode<KeyType, ValueType> node;
+    private Btree btree;
+    private LeafNode node;
     private int index;
 
-    public Cursor(Btree<KeyType, ValueType> btree, ReadGuard guard, LeafNode<KeyType, ValueType> node) {
+    public Cursor(Btree btree, ReadGuard guard, LeafNode node) {
         this.btree = btree;
         this.bufferpool = btree.getBufferPool();
         this.guard = guard;
         this.node = node;
     }
 
-    public Pair<KeyType, ValueType> get() {
-        Pair<KeyType, ValueType> curr = new Pair<KeyType,ValueType>(node.getKey(index), node.getValue(index));
+    public Pair<Compositekey, Compositekey> get() throws InvalidAttributesException {
+        Pair<Compositekey, Compositekey> curr = new Pair<Compositekey,Compositekey>(node.getKey(index), node.getValue(index));
         return curr;
     }
 
@@ -44,7 +47,7 @@ public class Cursor<KeyType extends Comparable<KeyType>, ValueType> {
                 Thread.sleep(10);
                 continue;
             }
-            LeafNode<KeyType, ValueType> nextNode = new LeafNode<>(btree.getKeyType(), btree.getValueType(),
+            LeafNode nextNode = new LeafNode(btree.getKeyType(), btree.getValueType(),
                     nextGuard.getData());
 
             node = nextNode;

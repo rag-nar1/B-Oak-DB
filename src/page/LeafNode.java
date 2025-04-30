@@ -1,15 +1,16 @@
 package page;
 
-import java.io.IOException;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
+
+import javax.naming.directory.InvalidAttributesException;
 
 import bufferpool.BufferPool;
 import bufferpool.WriteGuard;
 import globals.Globals;
 import types.Array;
 import types.CompareableArray;
-import types.Types;
+import types.Compositekey;
+import types.Template;
 
 /**
  * LeafNode class represents a leaf node in a B+ tree.
@@ -37,36 +38,36 @@ import types.Types;
  * | KeysN | Type | pageId |nextLeafNode| key1 | key2 | ... | keyN | value1 |
  * value2 | ... | valueN |
  */
-public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends TreeNodeHeader {
+public class LeafNode extends TreeNodeHeader {
     // The next leaf node in the linked list
     private long nextLeafNode; // this is the next 8 bytes of the header
     private final short headerSize = 2 + 1 + 8 + 8; // 2 bytes for keysN, 2 bytes for keySize, 2 bytes for valueSize, 1
                                                     // byte for type, 8 bytes for pageId, 8 bytes for nextLeafNode
-    private final Class<KeyType> keyType;
-    private final Class<ValueType> valueType;
+    private final Template keyType;
+    private final Template valueType;
     private final short keySize;
     private final short valueSize;
     private final short maxKeysN;
     private final short minKeysN;
-    private CompareableArray<KeyType> keys;
-    private Array<ValueType> values;
+    private CompareableArray keys;
+    private Array values;
 
-    public LeafNode(Class<KeyType> keyType, Class<ValueType> valueType, long pageId) {
+    public LeafNode(Template keyType, Template valueType, long pageId) {
         super(pageId, true);
         this.keyType = keyType;
         this.valueType = valueType;
-        keySize = Types.getSize(keyType);
-        valueSize = Types.getSize(valueType);
+        keySize = keyType.getByteSize();
+        valueSize = valueType.getByteSize();
         maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + valueSize));
         minKeysN = (short) (maxKeysN / 2);
         nextLeafNode = Globals.INVALID_PAGE_ID;
     }
 
-    public LeafNode(Class<KeyType> keyType, Class<ValueType> valueType, ByteBuffer rawData) {
+    public LeafNode(Template keyType, Template valueType, ByteBuffer rawData) {
         this.keyType = keyType;
         this.valueType = valueType;
-        keySize = Types.getSize(keyType);
-        valueSize = Types.getSize(valueType);
+        keySize = keyType.getByteSize();
+        valueSize = valueType.getByteSize();
         maxKeysN = (short) ((Globals.PAGE_SIZE - headerSize) / (keySize + valueSize));
         minKeysN = (short) (maxKeysN / 2);
 
@@ -76,11 +77,11 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         this.pageId = buffer.getLong();
         this.nextLeafNode = buffer.getLong();
 
-        keys = new CompareableArray<KeyType>(rawData, Array.getCodec(keyType), headerSize, keysN, maxKeysN);
-        values = new Array<>(rawData, Array.getCodec(valueType), headerSize + maxKeysN * keySize, keysN, maxKeysN);
+        keys = new CompareableArray(new Compositekey(keyType), rawData, headerSize, keysN, maxKeysN);
+        values = new Array(new Compositekey(valueType), rawData, headerSize + maxKeysN * keySize, keysN, maxKeysN);
     }
 
-    public LeafNode(Class<KeyType> keyType, Class<ValueType> valueType, byte[] rawData) {
+    public LeafNode(Template keyType, Template valueType, byte[] rawData) {
         this(keyType, valueType, ByteBuffer.wrap(rawData));
     }
 
@@ -92,7 +93,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         buffer.putLong(nextLeafNode);
     }
 
-    public int insert(KeyType key, ValueType value) {
+    public int insert(Compositekey key, Compositekey value) throws InvalidAttributesException {
         if (keysN >= maxKeysN) {
             return 0; // node is full
         }
@@ -108,7 +109,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         return 1;
     }
 
-    public ValueType get(KeyType key) {
+    public Compositekey get(Compositekey key) throws InvalidAttributesException {
         int index = keys.binarySearch(key);
         if (index == -1) {
             return null; // key not found
@@ -129,7 +130,7 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
             if(newGuard == null) {
                return null;
             }
-            LeafNode<KeyType, ValueType> newLeafNode = new LeafNode<>(keyType, valueType, newGuard.getDataMut());
+            LeafNode newLeafNode = new LeafNode(keyType, valueType, newGuard.getDataMut());
             newLeafNode.setLeaf(true);
             newLeafNode.setPageId(newPageId);
             // copy half of the keys and values to the new leaf node
@@ -164,11 +165,11 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         return headerSize;
     }
 
-    public Class<KeyType> getKeyType() {
+    public Template getKeyType() {
         return keyType;
     }
 
-    public Class<ValueType> getValueType() {
+    public Template getValueType() {
         return valueType;
     }
 
@@ -188,35 +189,35 @@ public class LeafNode<KeyType extends Comparable<KeyType>, ValueType> extends Tr
         return minKeysN;
     }
 
-    public CompareableArray<KeyType> getKeys() {
+    public CompareableArray getKeys() {
         return keys;
     }
 
-    public Array<ValueType> getValues() {
+    public Array getValues() {
         return values;
     }
 
-    public KeyType getKey(int index) {
+    public Compositekey getKey(int index) throws InvalidAttributesException {
         return keys.get(index);
     }
 
-    public ValueType getValue(int index) {
+    public Compositekey getValue(int index) throws InvalidAttributesException {
         return values.get(index);
     }
 
-    public void setKeys(CompareableArray<KeyType> keys) {
+    public void setKeys(CompareableArray keys) {
         this.keys = keys;
     }
 
-    public void setValues(Array<ValueType> values) {
+    public void setValues(Array values) {
         this.values = values;
     }
 
-    public void setKey(int index, KeyType key) {
+    public void setKey(int index, Compositekey key) {
         keys.set(index, key);
     }
 
-    public void setValue(int index, ValueType value) {
+    public void setValue(int index, Compositekey value) {
         values.set(index, value);
     }
 
