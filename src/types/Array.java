@@ -13,6 +13,7 @@ public class Array {
     private final ByteBuffer buf;
     private final Template template;
     private final Compositekey keyUtil;
+    
     public Array(Template template, byte[] data, int offsetBytes, int length, int capacity) {
         this.buf = ByteBuffer.wrap(data);
         this.offsetBytes = offsetBytes;

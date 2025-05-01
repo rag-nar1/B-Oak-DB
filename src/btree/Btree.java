@@ -1,5 +1,6 @@
 package btree;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
@@ -197,8 +198,8 @@ public class Btree {
                 newRoot.setLeaf(false);
                 newRoot.setPageId(newRootPageId);
                 // set the two child nodes
-                newRoot.setValue(0, currentNode.getPageId());
-                newRoot.setValue(1, newNode.getPageId());
+                newRoot.setValue(0, makeCompositekeyValue(currentNode.getPageId()));
+                newRoot.setValue(1, makeCompositekeyValue(newNode.getPageId()));
                 newRoot.setKey(1, currentNode.getKey(currentNode.getKeysN() - 1));
                 newRoot.setCompositekeyN((short) 2);
 
@@ -219,7 +220,7 @@ public class Btree {
             InternalNode parentNode = new InternalNode(keyType, parentGuard.getDataMut());
             int index = parentNode.getKeyIdx(key);
             // update the child node
-            parentNode.setValue(index - 1, newNode.getPageId());
+            parentNode.setValue(index - 1, makeCompositekeyValue(newNode.getPageId()));
 
             key = currentNode.getKey(currentNode.getKeysN() - 1);
             long propagatePageId = currentNode.getPageId();
@@ -232,7 +233,7 @@ public class Btree {
                 // check if the parent node is full
                 if (current.getKeysN() < current.getMaxKeysN()) {
                     // insert the new key and child node
-                    current.insert(key, propagatePageId);
+                    current.insert(key, makeCompositekeyValue(propagatePageId));
                     currentInternalGuard.close();
                     break;
                 }
@@ -246,9 +247,9 @@ public class Btree {
                 InternalNode newInternalNode = new InternalNode(keyType, newInternalNodeGuard.getDataMut());
                 // insert the key value
                 if (key.compareTo(current.getKey(current.getKeysN() - 1)) <= 0) {
-                    current.insert(key, propagatePageId);
+                    current.insert(key, makeCompositekeyValue(propagatePageId));
                 } else {
-                    newInternalNode.insert(key, propagatePageId);
+                    newInternalNode.insert(key, makeCompositekeyValue(propagatePageId));
                 }
                 // check if the split node was the root
                 if (current.getPageId() == header.getRootPageId()) {
@@ -264,8 +265,8 @@ public class Btree {
                     newRoot.setPageId(newRootPageId);
 
                     // set the two child nodes
-                    newRoot.setValue(0, current.getPageId());
-                    newRoot.setValue(1, newInternalNode.getPageId());
+                    newRoot.setValue(0, makeCompositekeyValue(current.getPageId()));
+                    newRoot.setValue(1, makeCompositekeyValue(newInternalNode.getPageId()));
                     newRoot.setKey(1, newInternalNode.getKey(0));
                     newRoot.setCompositekeyN((short) 2);
 
@@ -283,7 +284,7 @@ public class Btree {
                 parentGuard = ctx.peekFrontWrite();
                 InternalNode parent = new InternalNode(keyType, parentGuard.getDataMut());
                 index = parent.getKeyIdx(key);
-                parent.setValue(index - 1, newInternalNode.getPageId());
+                parent.setValue(index - 1, makeCompositekeyValue(newInternalNode.getPageId()));
 
                 key = newInternalNode.getKey(0);
                 propagatePageId = current.getPageId();
@@ -544,6 +545,16 @@ public class Btree {
             ctx.release();
             return itr;
         }
+    }
+
+    // utils
+
+    private Compositekey makeCompositekeyValue(long val) {
+        Compositekey key = new Compositekey(valueType);
+        ByteBuffer buf = ByteBuffer.wrap(new byte[Long.BYTES]);
+        buf.putLong(val);
+        key.set(0, buf.array());
+        return key;
     }
 
 }

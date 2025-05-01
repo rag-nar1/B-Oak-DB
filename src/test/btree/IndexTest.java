@@ -3,6 +3,8 @@ package test.btree;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import javax.security.auth.kerberos.KeyTab;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -11,43 +13,19 @@ import btree.Btree;
 import bufferpool.BufferPool;
 import diskmanager.DiskManager;
 import globals.Globals;
+import types.Compositekey;
+import types.Template;
 
 public class IndexTest {
-    class Key implements Comparable<Key> {
-        int id;
-        int age;
-        public Key(int id, int age) {
-            this.id = id;
-            this.age = age;
-        }
-        public int compareTo(Key rhs) {
-            if (this.id < rhs.id) {
-                return -1;
-            }
 
-            if (this.id > rhs.id) {
-                return 1;
-            }
-
-            if (this.age < rhs.age) {
-                return -1;
-            }
-
-            if (this.age > rhs.age) {
-                return -1;
-            }
-            return 0;
-        }
-    }
-
-    private Btree<Key, Long> btree;
+   private Btree btree;
     private BufferPool bufferPool;
     private DiskManager diskManager;
     private static final int MAX_PAGES = 4000; // Example max pages
     private static final int K = 10;
     private static final String btreeFilePath = "test.btree"; // Example file path for the B-tree
-    // private static final String logsFilePath = "logs.btree"; // Example file path for the B-tree
-    // private Thread monitor;
+    Template keyType;
+    Template valueType;
 
     @Before
     public void setUp() {
@@ -56,8 +34,10 @@ public class IndexTest {
         diskManager = new DiskManager();
         // Initialize the buffer pool with a size of 10 pages
         bufferPool = new BufferPool(MAX_PAGES, K, diskManager);
+        keyType = new Template(Integer.class, Integer.class);
+        valueType = new Template(Integer.class);
         // Initialize the B-tree
-        btree = new Btree<Key, Long>(Key.class, Long.class, btreeFilePath, Globals.INVALID_PAGE_ID,
+        btree = new Btree(keyType, valueType, btreeFilePath, Globals.INVALID_PAGE_ID,
                 bufferPool);
     }
 
@@ -73,13 +53,27 @@ public class IndexTest {
         }
     }
 
-     @Test
+    private Compositekey makeCompositekey(int age, int salary, Template type) {
+        Compositekey key = new Compositekey(type);
+        key.set(0, age, Integer.class);
+        key.set(1, salary, Integer.class);
+        return key;
+    }
+
+    private Compositekey makeCompositekey(int val, Template type) {
+        Compositekey key = new Compositekey(type);
+        key.set(0, val, Integer.class);
+        return key;
+    }
+
+
+    @Test
     public void testCompositeKey() throws Exception {
-        int keysnumber = 1_000;
+        double startTime = (double) System.currentTimeMillis();
+        int keysnumber = 1_000_000;
         for (int i = 0; i < keysnumber; i ++) {
-            Key key = new Key(i, keysnumber - i);
             try {
-                btree.insert(key, (long) i);
+                btree.insert(makeCompositekey(i, keysnumber - i, keyType), makeCompositekey(i, valueType));
             } catch (Exception e) {
                 e.printStackTrace();
                 fail();
@@ -87,14 +81,16 @@ public class IndexTest {
         }
 
         for (int i = 0; i < keysnumber; i ++) {
-            Key key = new Key(i, keysnumber - i);
             try {
-                long val = btree.get(key);
-                assertEquals(i, val);
+                Compositekey val = btree.get(makeCompositekey(i, keysnumber - i, keyType));
+                assertEquals(0, val.compareTo(makeCompositekey(i, valueType)));
             } catch (Exception e) {
                 e.printStackTrace();
                 fail();
             }
         }
+        double endTime = System.currentTimeMillis();
+        double fTime = (endTime - startTime) / (double) 1000;
+        System.out.println("test testCompositeKey done in: " + fTime + "s");
     }
 }

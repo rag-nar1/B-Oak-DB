@@ -18,18 +18,24 @@ public class Compositekey extends Template implements Comparable<Compositekey>{
         }
         this.keys = new Key[keys.length];
         for (int i = 0; i < keys.length; i ++) {
-            this.keys[i] = new Key(classes.getClass(i));
+            this.keys[i] = new Key(getClass(i));
         }
     }
 
     public Compositekey(Class<? extends Comparable<?>>... classes) {
         super(classes);
         this.keys = new Key[classes.length];
+        for (int i = 0; i < keys.length; i ++) {
+            this.keys[i] = new Key(getClass(i));
+        }
     }
 
     public Compositekey(Template classes) {
         super(classes.classes);
         this.keys = new Key[this.classes.length];
+        for (int i = 0; i < keys.length; i ++) {
+            this.keys[i] = new Key(getClass(i));
+        }
     }
 
     public int compareTo(Compositekey rhs) {
@@ -47,20 +53,48 @@ public class Compositekey extends Template implements Comparable<Compositekey>{
     public Compositekey read(ByteBuffer buf) throws InvalidAttributesException {
         for (int i = 0; i < keys.length; i++) {
             keys[i].readVal(buf);
-            buf.position(buf.position() + keys[i].byteSize()); // move the position in the buffer forward
         }
         return this;
     }
 
     public void write(ByteBuffer buf) {
         for (int i = 0; i < keys.length; i++) {
-            keys[i].write(buf);
-            buf.position(buf.position() + keys[i].byteSize()); // move the position in the buffer forward   
+            keys[i].write(buf); 
         }
     }
 
     public Key get(int index) {
         return keys[index];
+    }
+
+    public void set(int index, byte[] val) {
+        keys[index].set(val);
+    }
+
+    public <T> void set(int index, T val, Class<T> type) {
+        ByteBuffer buf;
+        if (type == Integer.class) {
+            buf = ByteBuffer.wrap(new byte[Integer.BYTES]);
+            buf.putInt((int) val);
+        } else if (type == Long.class) {
+            buf = ByteBuffer.wrap(new byte[Long.BYTES]);
+            buf.putLong((long) val);
+        } else if (type == Double.class) {
+            buf = ByteBuffer.wrap(new byte[Double.BYTES]);
+            buf.putDouble((double) val);
+        } else if (type == Short.class) {
+            buf = ByteBuffer.wrap(new byte[Short.BYTES]);
+            buf.putShort((Short) val);
+        } else if (type == Byte.class) {
+            buf = ByteBuffer.wrap(new byte[Byte.BYTES]);
+            buf.put((Byte) val);
+        } else if (type == Float.class) {
+            buf = ByteBuffer.wrap(new byte[Float.BYTES]);
+            buf.putFloat((Float) val);
+        } else {
+            throw new IllegalArgumentException("Unsupported type: " + type.getName());
+        }
+        keys[index].set(buf.array());
     }
 
     @SuppressWarnings("unchecked")

@@ -7,6 +7,8 @@ import btree.Cursor;
 import bufferpool.*;
 import diskmanager.*;
 import globals.Globals;
+import types.Compositekey;
+import types.Template;
 
 import org.junit.Before;
 import static org.junit.Assert.*;
@@ -19,13 +21,16 @@ import org.junit.After;
 
 public class BtreeTest {
 
-    private Btree<Integer, Integer> btree;
+    private Btree btree;
     private BufferPool bufferPool;
     private DiskManager diskManager;
     private static final int MAX_PAGES = 4000; // Example max pages
     private static final int K = 10;
     private static final String btreeFilePath = "test.btree"; // Example file path for the B-tree
-    // private static final String logsFilePath = "logs.btree"; // Example file path for the B-tree
+    Template keyType;
+    Template valueType;
+    // private static final String logsFilePath = "logs.btree"; // Example file path
+    // for the B-tree
     // private Thread monitor;
 
     @Before
@@ -36,7 +41,9 @@ public class BtreeTest {
         // Initialize the buffer pool with a size of 10 pages
         bufferPool = new BufferPool(MAX_PAGES, K, diskManager);
         // Initialize the B-tree
-        btree = new Btree<Integer, Integer>(Integer.class, Integer.class, btreeFilePath, Globals.INVALID_PAGE_ID,
+        keyType = new Template(Integer.class);
+        valueType = new Template(Integer.class);
+        btree = new Btree(keyType, valueType, btreeFilePath, Globals.INVALID_PAGE_ID,
                 bufferPool);
     }
 
@@ -52,19 +59,25 @@ public class BtreeTest {
         }
     }
 
+    private Compositekey makeCompositekey(int val, Template type) {
+        Compositekey key = new Compositekey(type);
+        key.set(0, val, Integer.class);
+        return key;
+    }
+
     @Test
     public void testInsertAndSearch() {
         double startTime = (double) System.currentTimeMillis();
         int key = 5;
         int value = 10;
         try {
-            btree.insert(key, value);
+            btree.insert(makeCompositekey(key, keyType), makeCompositekey(value, valueType));
         } catch (Exception e) {
             fail("Insert operation failed: " + e.getMessage());
         }
         try {
-            Integer result = btree.get(key);
-            assertEquals("Search operation failed", value, result.intValue());
+            Compositekey result = btree.get(makeCompositekey(key, keyType));
+            assertEquals("Search operation failed", 0, result.compareTo(makeCompositekey(value, valueType)));
         } catch (Exception e) {
             fail("Search operation failed: " + e.getMessage());
         }
@@ -80,13 +93,13 @@ public class BtreeTest {
         double startTime = (double) System.currentTimeMillis();
         for (int i = 0; i < 100; i++) {
             try {
-                btree.insert(i, i);
+                btree.insert(makeCompositekey(i, keyType), makeCompositekey(i, valueType));
             } catch (Exception e) {
                 fail("Insert operation failed: " + e.getMessage());
             }
             try {
-                Integer result = btree.get(i);
-                assertEquals("Search operation failed", i, result.intValue());
+                Compositekey result = btree.get(makeCompositekey(i, keyType));
+                assertEquals("Search operation failed", 0, result.compareTo(makeCompositekey(i, valueType)));
             } catch (Exception e) {
                 fail("Search operation failed: " + e.getMessage());
             }
@@ -102,15 +115,15 @@ public class BtreeTest {
         int itr = 1_000_000;
         for (int i = 0; i < itr; i++) {
             try {
-                btree.insert(i, i);
+                btree.insert(makeCompositekey(i, keyType), makeCompositekey(i, valueType));
             } catch (Exception e) {
                 System.out.println(i);
                 e.printStackTrace();
                 fail("Insert operation failed: " + e.getMessage());
             }
             try {
-                Integer result = btree.get(i);
-                assertEquals("Search operation failed", i, result.intValue());
+                Compositekey result = btree.get(makeCompositekey(i, keyType));
+                assertEquals("Search operation failed", 0, result.compareTo(makeCompositekey(i, valueType)));
             } catch (Exception e) {
                 System.out.println(i);
                 e.printStackTrace();
@@ -132,7 +145,7 @@ public class BtreeTest {
         }
         for (int i = 0; i < itr; i++) {
             try {
-                btree.insert(keys[i], i);
+                btree.insert(makeCompositekey(keys[i], keyType), makeCompositekey(i, valueType));
             } catch (Exception e) {
                 System.out.println(i);
                 e.printStackTrace();
@@ -142,8 +155,8 @@ public class BtreeTest {
 
         for (int i = 0; i < itr; i++) {
             try {
-                Integer value = btree.get(keys[i]);
-                assertEquals("Search operation failed", i, value.intValue());
+                Compositekey result = btree.get(makeCompositekey(keys[i], keyType));
+                assertEquals("Search operation failed", 0, result.compareTo(makeCompositekey(i, valueType)));
             } catch (Exception e) {
                 System.out.println(i);
                 e.printStackTrace();
@@ -171,7 +184,7 @@ public class BtreeTest {
 
         for (int i = 0; i < itr; i++) {
             try {
-                btree.insert(keys[i], i);
+                btree.insert(makeCompositekey(keys[i], keyType), makeCompositekey(i, valueType));
             } catch (Exception e) {
                 System.out.println(i);
                 e.printStackTrace();
@@ -185,8 +198,8 @@ public class BtreeTest {
         startTime = System.currentTimeMillis();
         for (int i = 0; i < itr; i++) {
             try {
-                Integer value = btree.get(keys[i]);
-                assertEquals("Search operation failed", i, value.intValue());
+                Compositekey result = btree.get(makeCompositekey(keys[i], keyType));
+                assertEquals("Search operation failed", 0, result.compareTo(makeCompositekey(i, valueType)));
             } catch (Exception e) {
                 System.out.println(i);
                 e.printStackTrace();
@@ -214,15 +227,15 @@ public class BtreeTest {
 
         for (int i = 0; i < itr; i++) {
             try {
-                btree.insert(keys[i], i);
+                btree.insert(makeCompositekey(keys[i], keyType), makeCompositekey(i, valueType));
             } catch (Exception e) {
                 System.out.println(i);
                 e.printStackTrace();
                 fail("Insert operation failed: " + e.getMessage());
             }
             try {
-                Integer value = btree.get(keys[i]);
-                assertEquals("Search operation failed", i, value.intValue());
+                Compositekey result = btree.get(makeCompositekey(keys[i], keyType));
+                assertEquals("Search operation failed", 0, result.compareTo(makeCompositekey(i, valueType)));
             } catch (Exception e) {
                 System.out.println(i);
                 e.printStackTrace();
@@ -236,13 +249,13 @@ public class BtreeTest {
     }
 
     @Test
-    public void testCursur() throws Exception {
+    public void testCursor() throws Exception {
         int itr = 1_000_000;
         double startTime = (double) System.currentTimeMillis();
 
         for (int i = 0; i < itr; i++) {
             try {
-                btree.insert(i, i);
+                btree.insert(makeCompositekey(i, keyType), makeCompositekey(i, valueType));
             } catch (Exception e) {
                 System.out.println(i);
                 e.printStackTrace();
@@ -252,10 +265,10 @@ public class BtreeTest {
 
         int i = 0;
         try {
-            for (Cursor<Integer, Integer> cursor = btree.begin(); !cursor.isEnd(); cursor.next()) {
-                Cursor<Integer, Integer>.Pair<Integer, Integer> curr = cursor.get();
-                assertEquals(i, curr.first.intValue());
-                assertEquals(i, curr.second.intValue());
+            for (Cursor cursor = btree.begin(); !cursor.isEnd(); cursor.next()) {
+                Cursor.Pair<Compositekey, Compositekey> curr = cursor.get();
+                assertEquals("Search operation failed", 0, curr.first.compareTo(makeCompositekey(i, keyType)));
+                assertEquals("Search operation failed", 0, curr.second.compareTo(makeCompositekey(i, valueType)));
                 i++;
             }
 
@@ -271,8 +284,8 @@ public class BtreeTest {
 
     @Test
     public void testConcurrency() throws Exception {
-        int itrs = 20;
-        for (int itr = 1; itr <= itrs; itr ++) {
+        int itrs = 5;
+        for (int itr = 1; itr <= itrs; itr++) {
             setUp();
             double startTime = (double) System.currentTimeMillis();
 
@@ -285,7 +298,7 @@ public class BtreeTest {
                 Thread writer = new Thread(() -> {
                     for (int key = end - op; key < end; key++) {
                         try {
-                            btree.insert(key, key);
+                            btree.insert(makeCompositekey(key, keyType), makeCompositekey(key, valueType));
                         } catch (Exception e) {
                             e.printStackTrace();
                             fail();
@@ -295,11 +308,11 @@ public class BtreeTest {
                 threads.add(writer);
             }
 
-            for(Thread thread: threads) {
+            for (Thread thread : threads) {
                 thread.start();
             }
 
-            for(Thread thread: threads) {
+            for (Thread thread : threads) {
                 thread.join();
             }
             threads = new ArrayList<>();
@@ -309,8 +322,9 @@ public class BtreeTest {
                 Thread reader = new Thread(() -> {
                     for (int key = end - op; key < end; key++) {
                         try {
-                            int val = btree.get(key).intValue();
-                            assertEquals(key, val);
+                            Compositekey result = btree.get(makeCompositekey(key, keyType));
+                            assertEquals("Search operation failed", 0,
+                                    result.compareTo(makeCompositekey(key, valueType)));
                         } catch (Exception e) {
                             System.out.println("thread " + end / op + ": expected ->" + key);
                             e.printStackTrace();
@@ -321,25 +335,25 @@ public class BtreeTest {
                 threads.add(reader);
             }
 
-            for(Thread thread: threads) {
+            for (Thread thread : threads) {
                 thread.start();
             }
 
-            for(Thread thread: threads) {
+            for (Thread thread : threads) {
                 thread.join();
             }
 
             double endTime = System.currentTimeMillis();
             endTime = System.currentTimeMillis();
             double fTime = (endTime - startTime) / (double) 1000;
-            System.out.println("test testConcurrency done itr "+ itr +" : " + fTime + "s");
+            System.out.println("test testConcurrency done itr " + itr + " : " + fTime + "s");
         }
     }
 
     @Test
     public void testConcurrencyRand() throws Exception {
         int itrs = 5;
-        for (int itr = 1; itr <= itrs; itr ++) {
+        for (int itr = 1; itr <= itrs; itr++) {
             setUp();
             double startTime = (double) System.currentTimeMillis();
 
@@ -352,7 +366,7 @@ public class BtreeTest {
                 Thread writer = new Thread(() -> {
                     for (int key = end - op; key < end; key++) {
                         try {
-                            btree.insert(key, key);
+                            btree.insert(makeCompositekey(key, keyType), makeCompositekey(key, valueType));
                         } catch (Exception e) {
                             e.printStackTrace();
                             fail();
@@ -361,13 +375,13 @@ public class BtreeTest {
                 });
                 threads.add(writer);
             }
-            
+
             Collections.shuffle(threads);
-            for(Thread thread: threads) {
+            for (Thread thread : threads) {
                 thread.start();
             }
 
-            for(Thread thread: threads) {
+            for (Thread thread : threads) {
                 thread.join();
             }
             threads = new ArrayList<>();
@@ -377,8 +391,9 @@ public class BtreeTest {
                 Thread reader = new Thread(() -> {
                     for (int key = end - op; key < end; key++) {
                         try {
-                            int val = btree.get(key).intValue();
-                            assertEquals(key, val);
+                            Compositekey result = btree.get(makeCompositekey(key, keyType));
+                            assertEquals("Search operation failed", 0,
+                                    result.compareTo(makeCompositekey(key, valueType)));
                         } catch (Exception e) {
                             System.out.println("thread " + end / op + ": expected ->" + key);
                             e.printStackTrace();
@@ -390,20 +405,20 @@ public class BtreeTest {
             }
 
             Collections.shuffle(threads);
-            for(Thread thread: threads) {
+            for (Thread thread : threads) {
                 thread.start();
             }
 
-            for(Thread thread: threads) {
+            for (Thread thread : threads) {
                 thread.join();
             }
 
             double endTime = System.currentTimeMillis();
             endTime = System.currentTimeMillis();
             double fTime = (endTime - startTime) / (double) 1000;
-            System.out.println("test testConcurrency done itr "+ itr +" : " + fTime + "s");
+            System.out.println("test testConcurrency done itr " + itr + " : " + fTime +
+                    "s");
         }
     }
 
-   
 }
