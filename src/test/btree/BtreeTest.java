@@ -37,7 +37,7 @@ public class BtreeTest {
     public void setUp() {
         CleanUp();
         // Initialize the DiskManager
-        diskManager = new DiskManager();
+        diskManager = new BasicDiskManager();
         // Initialize the buffer pool with a size of 10 pages
         bufferPool = new BufferPool(MAX_PAGES, K, diskManager);
         // Initialize the B-tree

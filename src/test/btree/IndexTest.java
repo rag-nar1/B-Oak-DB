@@ -3,14 +3,13 @@ package test.btree;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import javax.security.auth.kerberos.KeyTab;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import btree.Btree;
 import bufferpool.BufferPool;
+import diskmanager.BasicDiskManager;
 import diskmanager.DiskManager;
 import globals.Globals;
 import types.Compositekey;
@@ -31,7 +30,7 @@ public class IndexTest {
     public void setUp() {
         CleanUp();
         // Initialize the DiskManager
-        diskManager = new DiskManager();
+        diskManager = new BasicDiskManager();
         // Initialize the buffer pool with a size of 10 pages
         bufferPool = new BufferPool(MAX_PAGES, K, diskManager);
         keyType = new Template(Integer.class, Integer.class);

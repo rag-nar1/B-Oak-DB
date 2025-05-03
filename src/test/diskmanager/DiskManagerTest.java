@@ -1,5 +1,6 @@
 package test.diskmanager;
 
+import diskmanager.BasicDiskManager;
 import diskmanager.DiskManager;
 import diskmanager.DiskRequest;
 
@@ -17,7 +18,7 @@ public class DiskManagerTest {
 
     @Before
     public void setUp() throws Exception {
-        diskManager = new DiskManager();
+        diskManager = new BasicDiskManager();
     }
     
     
