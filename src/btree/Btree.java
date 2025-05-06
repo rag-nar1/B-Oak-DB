@@ -298,7 +298,7 @@ public class Btree implements Index {
         }
     }
 
-    public int optimisticInsert(Compositekey key, Compositekey value) throws Exception {
+    private int optimisticInsert(Compositekey key, Compositekey value) throws Exception {
         Context ctx = new Context();
         ReadGuard guard = bufferPool.getReadGuard(fileName, headerPageId);
         if (guard == null) {
@@ -340,6 +340,41 @@ public class Btree implements Index {
             currentPageId = childPageId.<Long>getVal(0);
             lvl++;
         }
+    }
+
+    private Compositekey makeCompositekeyForInternal(long pageId) {
+        Compositekey key = new Compositekey(valueType);
+        key.set(0, pageId, Long.class);
+        return key;
+    }
+
+    private void redistribute(Context ctx) throws Exception{
+        // should have 2 nodes leaf and parent
+        WriteGuard currGuard = ctx.popBackWrite(); 
+        WriteGuard parentGuard = ctx.peekBackWrite();
+        LeafNode currNode = new LeafNode(keyType, valueType, currGuard.getDataMut());
+        InternalNode parenNode = new InternalNode(keyType, currGuard.getDataMut());
+    
+        // try get guaed on the left child 
+        int index = parenNode.getKeyIdx(currNode.getKey(currNode.getKeysN() - 1));
+        if (parenNode.getValue(index - 1).compareTo(makeCompositekeyForInternal(currNode.getPageId())) != 0) {
+            // there is a left child
+            ByteBuffer buf = ByteBuffer.wrap(parenNode.getValue(index - 1).get(0).get());
+            WriteGuard siblingGuard = bufferPool.getWriteGuard(fileName, buf.getLong());
+            if (siblingGuard != null) { // try redestibute
+                LeafNode siblingNode = new LeafNode(keyType, valueType, siblingGuard.getDataMut());
+                if (siblingNode.getKeysN() < siblingNode.getMaxKeysN() - 1) {
+                    // insert the smallest key value from current node into sibiling
+                    siblingNode.insert(currNode.getKey(0), currNode.getValue(0));
+                    // delete the smallest key value from current node
+                    currNode.delete(0);
+                    // update the parent key pointing to the sibiling node
+                    parenNode.setKey(index, siblingNode.getKey(siblingNode.getKeysN() - 1));
+                }
+            }
+        }
+
+        // could not redistrebute
     }
 
     public boolean delete(Compositekey key) throws Exception {
