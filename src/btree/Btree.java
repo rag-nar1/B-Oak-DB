@@ -348,14 +348,14 @@ public class Btree implements Index {
         return key;
     }
 
-    private void redistribute(Context ctx) throws Exception{
+    private void redistribute(Context ctx) throws Exception {
         // should have 2 nodes leaf and parent
-        WriteGuard currGuard = ctx.popBackWrite(); 
+        WriteGuard currGuard = ctx.popBackWrite();
         WriteGuard parentGuard = ctx.peekBackWrite();
         LeafNode currNode = new LeafNode(keyType, valueType, currGuard.getDataMut());
-        InternalNode parenNode = new InternalNode(keyType, currGuard.getDataMut());
-    
-        // try get guaed on the left child 
+        InternalNode parenNode = new InternalNode(keyType, parentGuard.getDataMut());
+
+        // try get guaed on the left child
         int index = parenNode.getKeyIdx(currNode.getKey(currNode.getKeysN() - 1));
         if (parenNode.getValue(index - 1).compareTo(makeCompositekeyForInternal(currNode.getPageId())) != 0) {
             // there is a left child
@@ -373,8 +373,24 @@ public class Btree implements Index {
                 }
             }
         }
-
-        // could not redistrebute
+        // could not redistrebute with the left sibiling
+        if (index < parenNode.getKeysN()
+                && parenNode.getValue(index).compareTo(makeCompositekeyForInternal(currNode.getPageId())) != 0) {
+            // there is a right child
+            ByteBuffer buf = ByteBuffer.wrap(parenNode.getValue(index).get(0).get());
+            WriteGuard siblingGuard = bufferPool.getWriteGuard(fileName, buf.getLong());
+            if (siblingGuard != null) { // try redestibute
+                LeafNode siblingNode = new LeafNode(keyType, valueType, siblingGuard.getDataMut());
+                if (siblingNode.getKeysN() < siblingNode.getMaxKeysN() - 1) {
+                    // insert the largest key value from current node into sibiling
+                    siblingNode.insert(currNode.getKey(currNode.getKeysN() - 1), currNode.getValue(currNode.getKeysN() - 1));
+                    // delete the smallest key value from current node
+                    currNode.delete(currNode.getKeysN() - 1);
+                    // update the parent key pointing to the current node
+                    parenNode.setKey(index, currNode.getKey(currNode.getKeysN() - 1));
+                }
+            }
+        }
     }
 
     public boolean delete(Compositekey key) throws Exception {
@@ -540,7 +556,7 @@ public class Btree implements Index {
     // cursor
 
     public Cursor begin() throws Exception {
-        out: while(true) {
+        out: while (true) {
             Context ctx = new Context();
             ReadGuard guard = bufferPool.getReadGuard(fileName, headerPageId);
             if (guard == null) {
@@ -568,11 +584,11 @@ public class Btree implements Index {
 
                 if (lvl == header.getHeight()) { // we are at the leaf node level
                     LeafNode node = new LeafNode(keyType, valueType,
-                    currentGuard.getData());
+                            currentGuard.getData());
                     itr = new Cursor(this, currentGuard, node);
                     break; // we are done
                 }
-                
+
                 ctx.addReadGuard(currentGuard);
                 // if we are not at the leaf node level, we need to find the child node
                 InternalNode currentNode = new InternalNode(keyType, currentGuard.getData());
