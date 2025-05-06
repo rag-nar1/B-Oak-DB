@@ -3,24 +3,32 @@ package diskmanager;
 import java.io.IOException;
 
 import java.util.concurrent.LinkedBlockingQueue;
+
+import globals.Globals;
+
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
 public class BasicDiskManager implements DiskManager {
-    
+
     private Map<String, DiskFile> files;
+    private Map<String, List<Long>> filesFreePages;
     private int fileCount;
     private BlockingQueue<DiskRequest> requestQueue;
     private Thread mainThread;
 
     private final String storageDir = "storage/";
+
     /**
      * defualt constructre
-     * todo: make new constructors based on a config 
+     * todo: make new constructors based on a config
      */
     public BasicDiskManager() throws NullPointerException {
         this.files = new ConcurrentHashMap<String, DiskFile>();
+        this.filesFreePages = new ConcurrentHashMap<String, List<Long>>();
         this.fileCount = 0;
         this.requestQueue = new LinkedBlockingQueue<DiskRequest>(100); // capped to 100 requests
         mainThread = new Thread(() -> { // start the worker that would fetch the requests and start a thread for each
@@ -36,8 +44,10 @@ public class BasicDiskManager implements DiskManager {
 
     /**
      * closes all files and invalidate the requestQueue and the files map
-     * used as a destractor 
-     * @throws NullPointerException if the object used after calling the close method for the first time
+     * used as a destractor
+     * 
+     * @throws NullPointerException if the object used after calling the close
+     *                              method for the first time
      */
     public void close() throws NullPointerException {
         mainThread.interrupt();
@@ -59,15 +69,17 @@ public class BasicDiskManager implements DiskManager {
     }
 
     /**
-     * the main threads run here start by fetching a request from the queue spin a thread to hundle it
+     * the main threads run here start by fetching a request from the queue spin a
+     * thread to hundle it
+     * 
      * @throws InterruptedException while ferching a request
      * @throws NullPointerException if used after a close call
      */
     private void run() throws InterruptedException, NullPointerException {
-        while(!Thread.currentThread().isInterrupted()) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 DiskRequest currentRequest = requestQueue.take();
-                new Thread(()-> {
+                new Thread(() -> {
                     DiskFile file = this.files.get(currentRequest.fileName);
                     if (file == null) {
                         try {
@@ -107,8 +119,9 @@ public class BasicDiskManager implements DiskManager {
     }
 
     /**
-     * puts the user request into the queue to be processed  
-     * @param request the request metadata 
+     * puts the user request into the queue to be processed
+     * 
+     * @param request the request metadata
      * @throws InterruptedException while pushing a new request into the queue
      * @throws NullPointerException if used after a close call
      */
@@ -118,30 +131,42 @@ public class BasicDiskManager implements DiskManager {
 
     /**
      * allocate a new page in the passed file
-     * @param fileName the file which will be extended 
-     * @return  pageId of the allocated page
-     * @throws IOException while allocating a page
+     * 
+     * @param fileName the file which will be extended
+     * @return pageId of the allocated page
+     * @throws IOException          while allocating a page
      * @throws NullPointerException if used after a close call
      */
     public long allocatePage(String fileName) throws IOException, NullPointerException {
         if (!files.containsKey(fileName)) {
             DiskFile file = new RandomAccessDiskFile(storageDir + fileName);
+            filesFreePages.put(fileName, new LinkedList<Long>());
             files.put(fileName, file);
             fileCount++;
         }
-        return files.get(fileName).allocatePage();
+        //check the free page list
+        List<Long> freePages = filesFreePages.get(fileName);
+        if(freePages.isEmpty()) {
+            for (int i = 0; i < Globals.PRE_ALLOCATED_PAGES_COUNT; i ++) {
+                freePages.add(files.get(fileName).allocatePage());
+            }
+        }
+        long pageID = freePages.getFirst();
+        freePages.removeFirst();
+        return pageID;
     }
 
     /**
      * 
-     * @return fileCount - number of opened files curruntly held by the disk maneger 
+     * @return fileCount - number of opened files curruntly held by the disk maneger
      */
     public int getFileCount() {
         return fileCount;
     }
 
     /**
-     *  get the number of pages in the file
+     * get the number of pages in the file
+     * 
      * @param fileName
      * @return
      */
@@ -155,8 +180,9 @@ public class BasicDiskManager implements DiskManager {
 
     /**
      * opens a file if not already opened before
+     * 
      * @param fileName the name of the file to be opened
-     * @throws IOException while opening the file
+     * @throws IOException          while opening the file
      * @throws NullPointerException if used after a close call
      */
     public void open(String fileName) throws IOException, NullPointerException {
@@ -167,8 +193,8 @@ public class BasicDiskManager implements DiskManager {
         DiskFile file = new RandomAccessDiskFile(storageDir + fileName);
         DiskFile prev = files.put(fileName, file);
         if (prev == null) {
-            fileCount ++;
+            fileCount++;
         }
     }
-    
+
 }
