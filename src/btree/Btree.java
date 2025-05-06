@@ -13,7 +13,7 @@ import page.LeafNode;
 import types.Compositekey;
 import types.Template;
 
-public class Btree {
+public class Btree implements Index {
     private final String fileName;
     private final Template keyType;
     private final Template valueType;
@@ -340,6 +340,10 @@ public class Btree {
             currentPageId = childPageId.<Long>getVal(0);
             lvl++;
         }
+    }
+
+    public boolean delete(Compositekey key) throws Exception {
+        return true;
     }
 
     // getters and setters
