@@ -13,6 +13,7 @@ import java.util.List;
 import org.junit.After;
 
 import bufferpool.*;
+import diskmanager.BasicDiskManager;
 import diskmanager.DiskManager;
 public class BufferPoolTest {
     private static final int bufferPoolSize = 2000;
@@ -22,7 +23,7 @@ public class BufferPoolTest {
 
     @Before
     public void setUp() {
-        DiskManager diskManager = new DiskManager();
+        DiskManager diskManager = new BasicDiskManager();
         bufferPool = new BufferPool(bufferPoolSize, kDistance, diskManager);
     }
 

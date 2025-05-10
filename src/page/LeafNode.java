@@ -118,6 +118,11 @@ public class LeafNode extends TreeNodeHeader {
         }
     }
 
+    public void delete(int index) throws InvalidAttributesException {
+        keys.delete(index);
+        values.delete(index);
+    }
+
     public WriteGuard split(BufferPool bufferPool, String fileName) {
         if (keysN < maxKeysN) {
             return null; // node is not full

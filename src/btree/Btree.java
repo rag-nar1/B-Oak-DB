@@ -13,7 +13,7 @@ import page.LeafNode;
 import types.Compositekey;
 import types.Template;
 
-public class Btree {
+public class Btree implements Index {
     private final String fileName;
     private final Template keyType;
     private final Template valueType;
@@ -152,6 +152,13 @@ public class Btree {
                     LeafNode currentNode = new LeafNode(keyType, valueType,
                             currentGuard.getDataMut());
                     if (currentNode.insert(key, value) != 0) { // if there is space in the node insert and we are done
+                        // we need to check if the node is full we can redistribute only if we are not at the root
+                        if (currentNode.getKeysN() < currentNode.getMaxKeysN() || lvl == 1) {
+                            ctx.release();
+                            return true;
+                        }
+                        // we need to redistribute
+                        insertRedistribute(ctx);
                         ctx.release();
                         return true;
                     }
@@ -298,7 +305,7 @@ public class Btree {
         }
     }
 
-    public int optimisticInsert(Compositekey key, Compositekey value) throws Exception {
+    private int optimisticInsert(Compositekey key, Compositekey value) throws Exception {
         Context ctx = new Context();
         ReadGuard guard = bufferPool.getReadGuard(fileName, headerPageId);
         if (guard == null) {
@@ -340,6 +347,92 @@ public class Btree {
             currentPageId = childPageId.<Long>getVal(0);
             lvl++;
         }
+    }
+
+    private Compositekey makeCompositekeyForInternal(long pageId) {
+        Compositekey key = new Compositekey(valueType);
+        key.set(0, pageId, Long.class);
+        return key;
+    }
+
+    private void insertRedistribute(Context ctx) throws Exception {
+        // we have to make sure that there is two nodes in the ctx
+        // a leaf node and an internal node (the parent of the leaf node)
+        if (ctx.writeGuardIsEmpty()) {
+            return;
+        }
+        
+        WriteGuard leafGuard = ctx.popFrontWrite();
+        if (ctx.writeGuardIsEmpty()) {
+            leafGuard.close();
+            return;
+        }
+        WriteGuard parentGuard = ctx.popFrontWrite();
+        LeafNode leafNode = new LeafNode(keyType, valueType, leafGuard.getDataMut());
+        InternalNode parentNode = new InternalNode(keyType, parentGuard.getDataMut());
+
+        int index = parentNode.getKeyIdx(leafNode.getKey(leafNode.getKeysN() - 1));
+        // try to redistribute with the left sibling
+        if (index > 1) {
+            WriteGuard leftGuard = bufferPool.getWriteGuard(fileName, parentNode.getValue(index - 2).<Long>getVal(0));
+            if (leftGuard == null) {
+                leafGuard.close();
+                parentGuard.close();
+                return;
+            }
+            LeafNode leftNode = new LeafNode(keyType, valueType, leftGuard.getDataMut());
+            if (leftNode.getKeysN() < leftNode.getMaxKeysN()) {
+                // redistribute with the left sibling
+                // move the first key and value of the leaf node to the left node
+                leftNode.insert(leafNode.getKey(0), leafNode.getValue(0));
+                leafNode.delete(0);
+                // update the parent node
+                parentNode.setKey(index - 1, leftNode.getKey(leftNode.getKeysN() - 1));
+                // release the locks
+                leftGuard.close();
+                leafGuard.close();
+                parentGuard.close();
+                return;
+            }
+            // release the left guard
+            leftGuard.close();
+        }
+
+        // try to redistribute with the right sibling
+        if (index < parentNode.getKeysN()) {
+            WriteGuard rightGuard = bufferPool.getWriteGuard(fileName, parentNode.getValue(index).<Long>getVal(0));
+            if (rightGuard == null) {
+                leafGuard.close();
+                parentGuard.close();
+                return;
+            }
+
+            LeafNode rightNode = new LeafNode(keyType, valueType, rightGuard.getDataMut());
+            if (rightNode.getKeysN() < rightNode.getMaxKeysN()) {
+                // redistribute with the right sibling
+                // move the last key and value of the leaf node to the right node
+                rightNode.insert(leafNode.getKey(leafNode.getKeysN() - 1), leafNode.getValue(leafNode.getKeysN() - 1));
+                leafNode.delete(leafNode.getKeysN() - 1);
+                // update the parent node
+                parentNode.setKey(index, rightNode.getKey(0));
+                // release the locks
+                rightGuard.close();
+                leafGuard.close();
+                parentGuard.close();
+                return;
+            }
+            // release the right guard
+            rightGuard.close();
+        }
+
+        // could not redistribute
+        // release the locks
+        parentGuard.close();
+        leafGuard.close();
+    }
+
+    public boolean delete(Compositekey key) throws Exception {
+        return true;
     }
 
     // getters and setters
@@ -501,7 +594,7 @@ public class Btree {
     // cursor
 
     public Cursor begin() throws Exception {
-        out: while(true) {
+        out: while (true) {
             Context ctx = new Context();
             ReadGuard guard = bufferPool.getReadGuard(fileName, headerPageId);
             if (guard == null) {
@@ -529,11 +622,11 @@ public class Btree {
 
                 if (lvl == header.getHeight()) { // we are at the leaf node level
                     LeafNode node = new LeafNode(keyType, valueType,
-                    currentGuard.getData());
+                            currentGuard.getData());
                     itr = new Cursor(this, currentGuard, node);
                     break; // we are done
                 }
-                
+
                 ctx.addReadGuard(currentGuard);
                 // if we are not at the leaf node level, we need to find the child node
                 InternalNode currentNode = new InternalNode(keyType, currentGuard.getData());

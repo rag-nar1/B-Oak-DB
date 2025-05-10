@@ -37,7 +37,7 @@ public class BtreeTest {
     public void setUp() {
         CleanUp();
         // Initialize the DiskManager
-        diskManager = new DiskManager();
+        diskManager = new BasicDiskManager();
         // Initialize the buffer pool with a size of 10 pages
         bufferPool = new BufferPool(MAX_PAGES, K, diskManager);
         // Initialize the B-tree
@@ -352,13 +352,13 @@ public class BtreeTest {
 
     @Test
     public void testConcurrencyRand() throws Exception {
-        int itrs = 5;
+        int itrs = 1;
         for (int itr = 1; itr <= itrs; itr++) {
             setUp();
             double startTime = (double) System.currentTimeMillis();
 
-            int writersCnt = 100;
-            int readersCnt = 100;
+            int writersCnt = 200;
+            int readersCnt = 200;
             List<Thread> threads = new ArrayList<>();
             int op = 10000;
             for (int i = 0; i < writersCnt; i++) {
@@ -416,7 +416,7 @@ public class BtreeTest {
             double endTime = System.currentTimeMillis();
             endTime = System.currentTimeMillis();
             double fTime = (endTime - startTime) / (double) 1000;
-            System.out.println("test testConcurrency done itr " + itr + " : " + fTime +
+            System.out.println("test testConcurrencyRand done itr " + itr + " : " + fTime +
                     "s");
         }
     }

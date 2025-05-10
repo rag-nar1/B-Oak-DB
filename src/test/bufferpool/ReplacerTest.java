@@ -1,5 +1,6 @@
 package test.bufferpool;
 
+import bufferpool.LRU;
 import bufferpool.Replacer;
 
 import java.util.ArrayList;
@@ -20,7 +21,7 @@ public class ReplacerTest {
 
     @Before
     public void setUp() {
-        replacer = new Replacer(K_DISTANCE);
+        replacer = new LRU(K_DISTANCE);
     }
 
     @Test

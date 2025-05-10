@@ -24,7 +24,7 @@ public class GuardTest {
     @Before
     public void setUp() {
         frame = new Frame(FRAME_ID, PAGE_ID, FILE_NAME);
-        replacer = new Replacer(K_DISTANCE);
+        replacer = new LRU(K_DISTANCE);
         bpmLatch = new ReentrantLock();
     }
 

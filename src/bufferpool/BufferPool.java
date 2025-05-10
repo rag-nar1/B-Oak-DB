@@ -48,7 +48,7 @@ public class BufferPool implements Closeable {
         }
         framesNumber = size;
         this.k = k;
-        this.replacer = new Replacer(this.k);
+        this.replacer = new LRU(this.k);
         this.diskManager = diskManager;
         frames = new Frame[framesNumber];
         freeFrames = new LinkedList<Integer>();
