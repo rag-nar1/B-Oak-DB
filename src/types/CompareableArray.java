@@ -14,7 +14,10 @@ public class CompareableArray extends Array {
     }
 
     public int upperBound(Compositekey key, int low, int high) throws InvalidAttributesException {
-        int index = high + 1;
+        if (high < low) {
+            return low;
+        }
+        int index = high;
         while (low <= high) {
             int mid = (low + high) / 2;
             Compositekey midKey = get(mid);
@@ -25,11 +28,18 @@ public class CompareableArray extends Array {
                 low = mid + 1;
             }
         }
+        Compositekey curr = get(index);
+        if(curr.compareTo(key) <= 0) {
+            index ++;
+        }
         return index;
     }
 
     public int lowerBound(Compositekey key, int low, int high) throws InvalidAttributesException {
-        int index = high + 1;
+        if (high < low) {
+            return low;
+        }
+        int index = high;
         while (low <= high) {
             int mid = (low + high) / 2;
             Compositekey midKey = get(mid);
@@ -39,6 +49,10 @@ public class CompareableArray extends Array {
             } else {
                 low = mid + 1;
             }
+        }
+        Compositekey curr = get(index);
+        if(curr.compareTo(key) < 0) {
+            index ++;
         }
         return index;
     }
@@ -71,7 +85,7 @@ public class CompareableArray extends Array {
                 high = mid - 1;
             }
         }
-        return -1; // key not found
+        return 0; // key not found
     }
 
     public int binarySearch(Compositekey key) throws InvalidAttributesException {

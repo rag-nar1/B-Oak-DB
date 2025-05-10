@@ -3,6 +3,8 @@ package diskmanager;
 import java.io.IOException;
 
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import globals.Globals;
 
@@ -16,6 +18,7 @@ public class BasicDiskManager implements DiskManager {
 
     private Map<String, DiskFile> files;
     private Map<String, List<Long>> filesFreePages;
+    private Map<String, Lock> resizeLocks;
     private int fileCount;
     private BlockingQueue<DiskRequest> requestQueue;
     private Thread mainThread;
@@ -29,6 +32,7 @@ public class BasicDiskManager implements DiskManager {
     public BasicDiskManager() throws NullPointerException {
         this.files = new ConcurrentHashMap<String, DiskFile>();
         this.filesFreePages = new ConcurrentHashMap<String, List<Long>>();
+        this.resizeLocks = new ConcurrentHashMap<String, Lock>();
         this.fileCount = 0;
         this.requestQueue = new LinkedBlockingQueue<DiskRequest>(100); // capped to 100 requests
         mainThread = new Thread(() -> { // start the worker that would fetch the requests and start a thread for each
@@ -142,9 +146,12 @@ public class BasicDiskManager implements DiskManager {
             DiskFile file = new RandomAccessDiskFile(storageDir + fileName);
             filesFreePages.put(fileName, new LinkedList<Long>());
             files.put(fileName, file);
+            resizeLocks.put(fileName, new ReentrantLock());
             fileCount++;
         }
         //check the free page list
+        Lock lock = resizeLocks.get(fileName);
+        lock.lock();
         List<Long> freePages = filesFreePages.get(fileName);
         if(freePages.isEmpty()) {
             for (int i = 0; i < Globals.PRE_ALLOCATED_PAGES_COUNT; i ++) {
@@ -153,6 +160,7 @@ public class BasicDiskManager implements DiskManager {
         }
         long pageID = freePages.getFirst();
         freePages.removeFirst();
+        lock.unlock();
         return pageID;
     }
 

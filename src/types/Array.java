@@ -78,7 +78,7 @@ public class Array {
 
     private void checkIndex(int i) {
         if (i < 0 || i >= capacity)
-            throw new IndexOutOfBoundsException(i + "/" + length);
+            throw new IndexOutOfBoundsException(i + "/c" + capacity + "/l" + length);
     }
 
     // getters and setters

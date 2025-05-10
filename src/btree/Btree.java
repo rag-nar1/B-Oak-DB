@@ -152,6 +152,13 @@ public class Btree implements Index {
                     LeafNode currentNode = new LeafNode(keyType, valueType,
                             currentGuard.getDataMut());
                     if (currentNode.insert(key, value) != 0) { // if there is space in the node insert and we are done
+                        // we need to check if the node is full we can redistribute only if we are not at the root
+                        if (currentNode.getKeysN() < currentNode.getMaxKeysN() || lvl == 1) {
+                            ctx.release();
+                            return true;
+                        }
+                        // we need to redistribute
+                        insertRedistribute(ctx);
                         ctx.release();
                         return true;
                     }
@@ -348,49 +355,80 @@ public class Btree implements Index {
         return key;
     }
 
-    private void redistribute(Context ctx) throws Exception {
-        // should have 2 nodes leaf and parent
-        WriteGuard currGuard = ctx.popBackWrite();
-        WriteGuard parentGuard = ctx.peekBackWrite();
-        LeafNode currNode = new LeafNode(keyType, valueType, currGuard.getDataMut());
-        InternalNode parenNode = new InternalNode(keyType, parentGuard.getDataMut());
+    private void insertRedistribute(Context ctx) throws Exception {
+        // we have to make sure that there is two nodes in the ctx
+        // a leaf node and an internal node (the parent of the leaf node)
+        if (ctx.writeGuardIsEmpty()) {
+            return;
+        }
+        
+        WriteGuard leafGuard = ctx.popFrontWrite();
+        if (ctx.writeGuardIsEmpty()) {
+            leafGuard.close();
+            return;
+        }
+        WriteGuard parentGuard = ctx.popFrontWrite();
+        LeafNode leafNode = new LeafNode(keyType, valueType, leafGuard.getDataMut());
+        InternalNode parentNode = new InternalNode(keyType, parentGuard.getDataMut());
 
-        // try get guaed on the left child
-        int index = parenNode.getKeyIdx(currNode.getKey(currNode.getKeysN() - 1));
-        if (parenNode.getValue(index - 1).compareTo(makeCompositekeyForInternal(currNode.getPageId())) != 0) {
-            // there is a left child
-            ByteBuffer buf = ByteBuffer.wrap(parenNode.getValue(index - 1).get(0).get());
-            WriteGuard siblingGuard = bufferPool.getWriteGuard(fileName, buf.getLong());
-            if (siblingGuard != null) { // try redestibute
-                LeafNode siblingNode = new LeafNode(keyType, valueType, siblingGuard.getDataMut());
-                if (siblingNode.getKeysN() < siblingNode.getMaxKeysN() - 1) {
-                    // insert the smallest key value from current node into sibiling
-                    siblingNode.insert(currNode.getKey(0), currNode.getValue(0));
-                    // delete the smallest key value from current node
-                    currNode.delete(0);
-                    // update the parent key pointing to the sibiling node
-                    parenNode.setKey(index, siblingNode.getKey(siblingNode.getKeysN() - 1));
-                }
+        int index = parentNode.getKeyIdx(leafNode.getKey(leafNode.getKeysN() - 1));
+        // try to redistribute with the left sibling
+        if (index > 1) {
+            WriteGuard leftGuard = bufferPool.getWriteGuard(fileName, parentNode.getValue(index - 2).<Long>getVal(0));
+            if (leftGuard == null) {
+                leafGuard.close();
+                parentGuard.close();
+                return;
             }
-        }
-        // could not redistrebute with the left sibiling
-        if (index < parenNode.getKeysN()
-                && parenNode.getValue(index).compareTo(makeCompositekeyForInternal(currNode.getPageId())) != 0) {
-            // there is a right child
-            ByteBuffer buf = ByteBuffer.wrap(parenNode.getValue(index).get(0).get());
-            WriteGuard siblingGuard = bufferPool.getWriteGuard(fileName, buf.getLong());
-            if (siblingGuard != null) { // try redestibute
-                LeafNode siblingNode = new LeafNode(keyType, valueType, siblingGuard.getDataMut());
-                if (siblingNode.getKeysN() < siblingNode.getMaxKeysN() - 1) {
-                    // insert the largest key value from current node into sibiling
-                    siblingNode.insert(currNode.getKey(currNode.getKeysN() - 1), currNode.getValue(currNode.getKeysN() - 1));
-                    // delete the smallest key value from current node
-                    currNode.delete(currNode.getKeysN() - 1);
-                    // update the parent key pointing to the current node
-                    parenNode.setKey(index, currNode.getKey(currNode.getKeysN() - 1));
-                }
+            LeafNode leftNode = new LeafNode(keyType, valueType, leftGuard.getDataMut());
+            if (leftNode.getKeysN() < leftNode.getMaxKeysN()) {
+                // redistribute with the left sibling
+                // move the first key and value of the leaf node to the left node
+                leftNode.insert(leafNode.getKey(0), leafNode.getValue(0));
+                leafNode.delete(0);
+                // update the parent node
+                parentNode.setKey(index - 1, leftNode.getKey(leftNode.getKeysN() - 1));
+                // release the locks
+                leftGuard.close();
+                leafGuard.close();
+                parentGuard.close();
+                return;
             }
+            // release the left guard
+            leftGuard.close();
         }
+
+        // try to redistribute with the right sibling
+        if (index < parentNode.getKeysN()) {
+            WriteGuard rightGuard = bufferPool.getWriteGuard(fileName, parentNode.getValue(index).<Long>getVal(0));
+            if (rightGuard == null) {
+                leafGuard.close();
+                parentGuard.close();
+                return;
+            }
+
+            LeafNode rightNode = new LeafNode(keyType, valueType, rightGuard.getDataMut());
+            if (rightNode.getKeysN() < rightNode.getMaxKeysN()) {
+                // redistribute with the right sibling
+                // move the last key and value of the leaf node to the right node
+                rightNode.insert(leafNode.getKey(leafNode.getKeysN() - 1), leafNode.getValue(leafNode.getKeysN() - 1));
+                leafNode.delete(leafNode.getKeysN() - 1);
+                // update the parent node
+                parentNode.setKey(index, rightNode.getKey(0));
+                // release the locks
+                rightGuard.close();
+                leafGuard.close();
+                parentGuard.close();
+                return;
+            }
+            // release the right guard
+            rightGuard.close();
+        }
+
+        // could not redistribute
+        // release the locks
+        parentGuard.close();
+        leafGuard.close();
     }
 
     public boolean delete(Compositekey key) throws Exception {
