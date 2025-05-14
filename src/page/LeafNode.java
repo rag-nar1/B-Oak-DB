@@ -173,6 +173,52 @@ public class LeafNode extends TreeNodeHeader {
         }
     }
 
+    public boolean redistribute(String fileName, int index, InternalNode parent, BufferPool bufferPool) throws Exception {
+        if (index > 1) {
+            WriteGuard leftGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index - 2).<Long>getVal(0));
+            if (leftGuard != null) {
+                LeafNode leftNode = new LeafNode(keyType, valueType, leftGuard.getDataMut());
+                if (leftNode.getKeysN() > leftNode.getMinKeysN()) { // can redistribute
+                    // move the last key and value of the left node to the currunt node
+                    insert(leftNode.getKey(leftNode.getKeysN() - 1), leftNode.getValue(leftNode.getKeysN() - 1));
+                    leftNode.delete(leftNode.getKeysN() - 1);
+                    // update the parent node
+                    parent.setKey(index - 1, leftNode.getKey(leftNode.getKeysN() - 1));
+                    // release the left node lock
+                    leftGuard.close();
+                    return true;
+                }
+                // release the left node lock
+                leftGuard.close();
+            }
+        }
+
+        // try to redistribute with the right sibling
+        if (index < parent.getKeysN()) {
+            WriteGuard rightGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index).<Long>getVal(0));
+            if (rightGuard == null) {
+                return false;
+            }
+
+            LeafNode rightNode = new LeafNode(keyType, valueType, rightGuard.getDataMut());
+            if (rightNode.getKeysN() > rightNode.getMinKeysN()) {
+                // redistribute with the right sibling
+                // move the first key and value of the right node to the currunt node
+                insert(rightNode.getKey(0), rightNode.getValue(0));
+                rightNode.delete(0);
+                // update the parent node
+                parent.setKey(index, getKey(getKeysN() - 1));
+                //release right node
+                rightGuard.close();
+                return true;
+            }
+            // release the right guard
+            rightGuard.close();
+        }
+        
+        return false;
+    }
+
     // Getters and Setters
 
     public long getNextLeafNode() {

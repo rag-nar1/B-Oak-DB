@@ -395,27 +395,24 @@ public class Btree implements Index {
         // try to redistribute with the left sibling
         if (index > 1) {
             WriteGuard leftGuard = bufferPool.getWriteGuard(fileName, parentNode.getValue(index - 2).<Long>getVal(0));
-            if (leftGuard == null) {
-                leafGuard.close();
-                parentGuard.close();
-                return;
-            }
-            LeafNode leftNode = new LeafNode(keyType, valueType, leftGuard.getDataMut());
-            if (leftNode.getKeysN() < leftNode.getMaxKeysN()) {
-                // redistribute with the left sibling
-                // move the first key and value of the leaf node to the left node
-                leftNode.insert(leafNode.getKey(0), leafNode.getValue(0));
-                leafNode.delete(0);
-                // update the parent node
-                parentNode.setKey(index - 1, leftNode.getKey(leftNode.getKeysN() - 1));
-                // release the locks
+            if (leftGuard != null) {
+                LeafNode leftNode = new LeafNode(keyType, valueType, leftGuard.getDataMut());
+                if (leftNode.getKeysN() < leftNode.getMaxKeysN()) {
+                    // redistribute with the left sibling
+                    // move the first key and value of the leaf node to the left node
+                    leftNode.insert(leafNode.getKey(0), leafNode.getValue(0));
+                    leafNode.delete(0);
+                    // update the parent node
+                    parentNode.setKey(index - 1, leftNode.getKey(leftNode.getKeysN() - 1));
+                    // release the locks
+                    leftGuard.close();
+                    leafGuard.close();
+                    parentGuard.close();
+                    return;
+                }
+                // release the left guard
                 leftGuard.close();
-                leafGuard.close();
-                parentGuard.close();
-                return;
             }
-            // release the left guard
-            leftGuard.close();
         }
 
         // try to redistribute with the right sibling
@@ -454,42 +451,45 @@ public class Btree implements Index {
     public boolean delete(Compositekey key) throws Exception {
         out: while (true) {
             // todo: do optimistic deletes
+            // check if the B+ tree is empty
             Context ctx = new Context();
             WriteGuard guard = bufferPool.getWriteGuard(fileName, headerPageId);
             if (guard == null) {
-                return false;
+                Thread.sleep(10);
+                continue;
             }
             BtreeHeader header = new BtreeHeader(guard.getDataMut());
             if (header.getRootPageId() == Globals.INVALID_PAGE_ID) {
+                // tree is empty
                 guard.close();
-                return true; // the tree is empty
+                return true;
             }
-            
             ctx.setHeaderWriteGuard(guard);
+            // get the root page id
             long rootPageId = header.getRootPageId();
+            // get the root node
             long currentPageId = rootPageId;
             int lvl = 1;
-            while(true) {
+            while (true) {
                 WriteGuard currentGuard = bufferPool.getWriteGuard(fileName, currentPageId);
                 if (currentGuard == null) {
                     ctx.release();
+                    Thread.sleep(10);
                     continue out;
                 }
-                
-                if(lvl == header.getHeight()) {
-                    LeafNode currentNode = new LeafNode(keyType, valueType, currentGuard.getDataMut());
-                    if (currentNode.getKeysN() > currentNode.getMinKeysN()) {
-                        ctx.release();
-                    }
+                if (lvl == header.getHeight()) { // we are at the leaf node level
                     ctx.addWriteGuard(currentGuard);
-                    if(currentNode.delete(key)) {
-                        ctx.release();
+                    LeafNode currentNode = new LeafNode(keyType, valueType,
+                            currentGuard.getDataMut());
+                    if (currentNode.delete(key) || lvl == 1) {
                         return true;
                     }
-                    break;
+                    break; 
                 }
-                
+                // if we are not at the leaf node level, we need to find the child node
                 InternalNode currentNode = new InternalNode(keyType, currentGuard.getDataMut());
+                // relase the locks over the above nodes since we are not going to split farther
+                // than this
                 if (currentNode.getKeysN() > currentNode.getMinKeysN()) {
                     ctx.release();
                 }
@@ -497,6 +497,17 @@ public class Btree implements Index {
                 Compositekey childPageId = currentNode.getChildForKey(key);
                 currentPageId = childPageId.<Long>getVal(0);
                 lvl++;
+            }
+
+            // first we redistribute with the left and right if we can not we start merging 
+            WriteGuard leafGuard = ctx.popFrontWrite();
+            WriteGuard parentGuard = ctx.popFrontWrite();
+            LeafNode leafNode = new LeafNode(keyType, valueType, leafGuard.getDataMut());
+            InternalNode parentNode = new InternalNode(keyType, parentGuard.getDataMut());
+            // try redistribute with the left sibiling
+            int index = parentNode.getKeyIdx(leafNode.getKey(leafNode.getKeysN() - 1));
+            if (!leafNode.redistribute(fileName, index, parentNode, bufferPool)) { // if can not redistribute merge
+                leafNode.merge(fileName, index, parentNode, bufferPool); // todo
             }
 
 
