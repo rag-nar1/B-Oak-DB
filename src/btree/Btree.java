@@ -328,21 +328,41 @@ public class Btree implements Index {
                     ctx.release();
                     return 0;
                 }
+                ctx.addWriteGuard(currentGuard);
                 LeafNode currentNode = new LeafNode(keyType, valueType,
                         currentGuard.getDataMut());
                 int tryInsert = currentNode.insert(key, value);
-                currentGuard.close();
+                if (tryInsert != 0 && currentNode.getKeysN() == currentNode.getMaxKeysN() && lvl != 1) {
+                    // try to redistribute
+                    insertRedistribute(ctx);
+                    ctx.release();
+                    return tryInsert;
+                }
                 ctx.release();
                 return tryInsert;
             }
-            ReadGuard currentGuard = bufferPool.getReadGuard(fileName, currentPageId);
-            if (currentGuard == null) {
+            InternalNode currentNode;
+            if (lvl == header.getHeight() - 1) {
+                WriteGuard currentGuard = bufferPool.getWriteGuard(fileName, currentPageId);
+                if (currentGuard == null) {
+                    ctx.release();
+                    return 0;
+                }
                 ctx.release();
-                return 0;
+                ctx.addWriteGuard(currentGuard);
+                // if we are not at the leaf node level, we need to find the child node
+                currentNode = new InternalNode(keyType, currentGuard.getData());
+            } else {
+                ReadGuard currentGuard = bufferPool.getReadGuard(fileName, currentPageId);
+                if (currentGuard == null) {
+                    ctx.release();
+                    return 0;
+                }
+                ctx.release();
+                ctx.addReadGuard(currentGuard);
+                // if we are not at the leaf node level, we need to find the child node
+                currentNode = new InternalNode(keyType, currentGuard.getData());
             }
-            ctx.addReadGuard(currentGuard);
-            // if we are not at the leaf node level, we need to find the child node
-            InternalNode currentNode = new InternalNode(keyType, currentGuard.getData());
             Compositekey childPageId = currentNode.getChildForKey(key);
             currentPageId = childPageId.<Long>getVal(0);
             lvl++;
@@ -414,7 +434,7 @@ public class Btree implements Index {
                 rightNode.insert(leafNode.getKey(leafNode.getKeysN() - 1), leafNode.getValue(leafNode.getKeysN() - 1));
                 leafNode.delete(leafNode.getKeysN() - 1);
                 // update the parent node
-                parentNode.setKey(index, rightNode.getKey(0));
+                parentNode.setKey(index, leafNode.getKey(leafNode.getKeysN() - 1));
                 // release the locks
                 rightGuard.close();
                 leafGuard.close();
@@ -432,7 +452,56 @@ public class Btree implements Index {
     }
 
     public boolean delete(Compositekey key) throws Exception {
-        return true;
+        out: while (true) {
+            // todo: do optimistic deletes
+            Context ctx = new Context();
+            WriteGuard guard = bufferPool.getWriteGuard(fileName, headerPageId);
+            if (guard == null) {
+                return false;
+            }
+            BtreeHeader header = new BtreeHeader(guard.getDataMut());
+            if (header.getRootPageId() == Globals.INVALID_PAGE_ID) {
+                guard.close();
+                return true; // the tree is empty
+            }
+            
+            ctx.setHeaderWriteGuard(guard);
+            long rootPageId = header.getRootPageId();
+            long currentPageId = rootPageId;
+            int lvl = 1;
+            while(true) {
+                WriteGuard currentGuard = bufferPool.getWriteGuard(fileName, currentPageId);
+                if (currentGuard == null) {
+                    ctx.release();
+                    continue out;
+                }
+                
+                if(lvl == header.getHeight()) {
+                    LeafNode currentNode = new LeafNode(keyType, valueType, currentGuard.getDataMut());
+                    if (currentNode.getKeysN() > currentNode.getMinKeysN()) {
+                        ctx.release();
+                    }
+                    ctx.addWriteGuard(currentGuard);
+                    if(currentNode.delete(key)) {
+                        ctx.release();
+                        return true;
+                    }
+                    break;
+                }
+                
+                InternalNode currentNode = new InternalNode(keyType, currentGuard.getDataMut());
+                if (currentNode.getKeysN() > currentNode.getMinKeysN()) {
+                    ctx.release();
+                }
+                ctx.addWriteGuard(currentGuard);
+                Compositekey childPageId = currentNode.getChildForKey(key);
+                currentPageId = childPageId.<Long>getVal(0);
+                lvl++;
+            }
+
+
+            return true;
+        }
     }
 
     // getters and setters

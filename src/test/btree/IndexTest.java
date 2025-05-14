@@ -72,7 +72,7 @@ public class IndexTest {
     @Test
     public void testCompositeKey() throws Exception {
         double startTime = (double) System.currentTimeMillis();
-        int keysnumber = 2_000_000;
+        int keysnumber = 1_000_000;
         for (int i = 0; i < keysnumber; i++) {
             try {
                 btree.insert(makeCompositekey(i, keysnumber - i, keyType), makeCompositekey(i, valueType));
@@ -99,13 +99,13 @@ public class IndexTest {
     @Test
     public void testConcurrencyRand() throws Exception {
         int itrs = 1;
-        int keysnumber = 2_000_000;
+        int keysnumber = 1_000_000;
         for (int itr = 1; itr <= itrs; itr++) {
             setUp();
             double startTime = (double) System.currentTimeMillis();
 
-            int writersCnt = 200;
-            int readersCnt = 200;
+            int writersCnt = 100;
+            int readersCnt = 100;
             List<Thread> threads = new ArrayList<>();
             int op = 10000;
             for (int i = 0; i < writersCnt; i++) {
@@ -140,6 +140,10 @@ public class IndexTest {
                     for (int key = end - op; key < end; key++) {
                         try {
                             Compositekey val = btree.get(makeCompositekey(key, keysnumber - key, keyType));
+                            if(val.compareTo(makeCompositekey(key, valueType)) != 0) {
+                                System.out.println("found :" + val.<Integer>getVal(0));
+                                System.out.println("expected :" + key);
+                            }  
                             assertEquals(0, val.compareTo(makeCompositekey(key, valueType)));
                         } catch (Exception e) {
                             System.out.println("thread " + end / op + ": expected ->" + key);

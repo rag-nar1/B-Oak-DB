@@ -121,6 +121,19 @@ public class LeafNode extends TreeNodeHeader {
     public void delete(int index) throws InvalidAttributesException {
         keys.delete(index);
         values.delete(index);
+        if (keysN > 0) {
+            keysN--;
+            writeHeader();
+        }
+    }
+
+    public boolean delete(Compositekey key) throws InvalidAttributesException {
+        int index = keys.binarySearch(key);
+        if (index != -1) {
+            delete(index);
+        }
+        return keysN >= minKeysN;
+
     }
 
     public WriteGuard split(BufferPool bufferPool, String fileName) {
