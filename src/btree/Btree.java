@@ -152,7 +152,8 @@ public class Btree implements Index {
                     LeafNode currentNode = new LeafNode(keyType, valueType,
                             currentGuard.getDataMut());
                     if (currentNode.insert(key, value) != 0) { // if there is space in the node insert and we are done
-                        // we need to check if the node is full we can redistribute only if we are not at the root
+                        // we need to check if the node is full we can redistribute only if we are not
+                        // at the root
                         if (currentNode.getKeysN() < currentNode.getMaxKeysN() || lvl == 1) {
                             ctx.release();
                             return true;
@@ -381,7 +382,7 @@ public class Btree implements Index {
         if (ctx.writeGuardIsEmpty()) {
             return;
         }
-        
+
         WriteGuard leafGuard = ctx.popFrontWrite();
         if (ctx.writeGuardIsEmpty()) {
             leafGuard.close();
@@ -484,7 +485,7 @@ public class Btree implements Index {
                     if (currentNode.delete(key) || lvl == 1) {
                         return true;
                     }
-                    break; 
+                    break;
                 }
                 // if we are not at the leaf node level, we need to find the child node
                 InternalNode currentNode = new InternalNode(keyType, currentGuard.getDataMut());
@@ -499,18 +500,58 @@ public class Btree implements Index {
                 lvl++;
             }
 
-            // first we redistribute with the left and right if we can not we start merging 
+            // first we redistribute with the left and right if we can not we start merging
             WriteGuard leafGuard = ctx.popFrontWrite();
-            WriteGuard parentGuard = ctx.popFrontWrite();
+            WriteGuard parentGuard = ctx.peekFrontWrite();
             LeafNode leafNode = new LeafNode(keyType, valueType, leafGuard.getDataMut());
             InternalNode parentNode = new InternalNode(keyType, parentGuard.getDataMut());
             // try redistribute with the left sibiling
             int index = parentNode.getKeyIdx(leafNode.getKey(leafNode.getKeysN() - 1));
-            if (!leafNode.redistribute(fileName, index, parentNode, bufferPool)) { // if can not redistribute merge
-                leafNode.merge(fileName, index, parentNode, bufferPool); // todo
+            while (!leafNode.redistribute(fileName, index, parentNode, bufferPool)
+                    && !leafNode.merge(fileName, index, parentNode, bufferPool)) {
+                // try until success
+                Thread.sleep(10);
+                continue;
             }
 
+            leafGuard.close();
 
+            // propagete redistribute or merge up the tree
+            while (!ctx.writeGuardIsEmpty()) {
+                WriteGuard currentInternalGuard = ctx.popFrontWrite();
+                InternalNode current = new InternalNode(keyType, currentInternalGuard.getDataMut());
+                if (current.getPageId() == header.getRootPageId()) {
+                    if (current.getKeysN() == 1) { // update the root
+                        // update the header
+                        long newRootPageId = current.getValue(0).<Long>getVal(0);
+                        header.setRootPageId(newRootPageId);
+                        header.setHeight((short) (header.getHeight() - 1));
+
+                        // delete the old root
+                        bufferPool.deletePage(fileName, current.getPageId());
+                        currentInternalGuard.close();
+                    }
+                    currentInternalGuard.close();
+                    break;
+                }
+
+                if (current.getKeysN() > current.getMinKeysN()) {
+                    currentInternalGuard.close();
+                    break;
+                }
+
+                parentGuard = ctx.peekFrontWrite();
+                parentNode = new InternalNode(keyType, parentGuard.getDataMut());
+                index = parentNode.getKeyIdx(leafNode.getKey(leafNode.getKeysN() - 1));
+                while (!current.redistribute(fileName, index, parentNode, bufferPool)
+                        && !current.merge(fileName, index, parentNode, bufferPool)) {
+                    // try until success
+                    Thread.sleep(10);
+                    continue;
+                }
+                currentInternalGuard.close();
+            }
+            ctx.release();
             return true;
         }
     }

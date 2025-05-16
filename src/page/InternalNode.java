@@ -141,7 +141,72 @@ public class InternalNode extends TreeNodeHeader {
         }
     }
 
+    public boolean redistribute(String fileName, int index, InternalNode parent, BufferPool bufferPool) throws Exception {
+        if (index > 1) {
+            WriteGuard leftGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index - 2).<Long>getVal(0));
+            if (leftGuard != null) {
+                InternalNode leftNode = new InternalNode(keyType, leftGuard.getDataMut());
+                if (leftNode.getKeysN() > leftNode.getMinKeysN()) { // can redistribute
+                    // move the last value of the left node to the currunt node
+                    Compositekey value = leftNode.getValue(leftNode.getKeysN() - 1);
+                    Compositekey key = parent.getKey(index - 1);
+                    insert(key, value);
+                    // update the parent before deletion
+                    parent.setKey(index - 1, leftNode.getKey(leftNode.getKeysN() - 1));
+                    // delete the last key value in left node
+                    leftNode.delete(leftNode.getKeysN() - 1);
+                    leftGuard.close();
+                    return true;
+                }
+                // release the left node lock
+                leftGuard.close();
+            }
+        }
 
+        // try to redistribute with the right sibling
+        if (index < parent.getKeysN()) {
+            WriteGuard rightGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index).<Long>getVal(0));
+            if (rightGuard == null) {
+                return false;
+            }
+
+            InternalNode rightNode = new InternalNode(keyType, rightGuard.getDataMut());
+            if (rightNode.getKeysN() > rightNode.getMinKeysN()) {
+                Compositekey value = rightNode.getValue(0);
+                Compositekey key = parent.getKey(index);
+                pushBack(key, value);
+                // update the parent
+                parent.setKey(index, rightNode.getKey(1));
+                // delete key(1) and val(0) from right node
+                rightNode.deleteRespective(1);
+                //release right node
+                rightGuard.close();
+                return true;
+            }
+            // release the right guard
+            rightGuard.close();
+        }
+        return false;
+    }
+
+    public boolean merge(String fileName, int index, InternalNode parent, BufferPool bufferPool) throws Exception {
+        
+    }
+
+    public void pushBack(Compositekey key, Compositekey value) throws InvalidAttributesException{
+        pushBackKey(key);
+        pushBackValue(value);
+        keysN ++;
+        writeHeader();
+    }
+
+    public void pushBackKey(Compositekey key) throws InvalidAttributesException{
+        keys.pushBack(key);
+    }
+
+    public void pushBackValue(Compositekey value) throws InvalidAttributesException{
+        values.pushBack(value);
+    }
     // Getters and Setters
     public short getHeaderSize() {
         return headerSize;
