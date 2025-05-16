@@ -219,6 +219,70 @@ public class LeafNode extends TreeNodeHeader {
         return false;
     }
 
+    public boolean merge(String fileName, int index, InternalNode parent, BufferPool bufferPool) throws Exception {
+        if (index > 1) {
+            WriteGuard leftGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index - 2).<Long>getVal(0));
+            if (leftGuard != null) {
+                LeafNode leftNode = new LeafNode(keyType, valueType, leftGuard.getDataMut());
+                if (leftNode.getKeysN() + getKeysN() <= leftNode.getMaxKeysN()) { // can merge
+                    for(int i = 0; i < getKeysN(); i ++) {
+                        leftNode.pushBack(getKey(i), getValue(i));
+                    }
+                    // delete the page
+                    bufferPool.deletePage(fileName, getPageId());
+                    // update the parent
+                    parent.delete(index - 1);
+                    // release the left node lock
+                    leftGuard.close();
+                    return true;
+                }
+                // release the left node lock
+                leftGuard.close();
+            }
+        }
+
+        // try to merge with the right sibling
+        if (index < parent.getKeysN()) {
+            WriteGuard rightGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index).<Long>getVal(0));
+            if (rightGuard == null) {
+                return false;
+            }
+
+            LeafNode rightNode = new LeafNode(keyType, valueType, rightGuard.getDataMut());
+            if (rightNode.getKeysN() + getKeysN() <= getMaxKeysN()) {
+                for(int i = 0; i < rightNode.getKeysN(); i ++) {
+                    pushBack(rightNode.getKey(i), rightNode.getValue(i));
+                }
+
+                // delete the page
+                bufferPool.deletePage(fileName, rightNode.getPageId());
+                // update the parent
+                parent.delete(index);
+                // release the right node lock
+                rightGuard.close();
+                return true;
+            }  
+            // release the right guard
+            rightGuard.close();
+        }
+        
+        return false;
+    }
+
+    public void pushBack(Compositekey key, Compositekey value) throws InvalidAttributesException{
+        pushBackKey(key);
+        pushBackValue(value);
+        keysN ++;
+        writeHeader();
+    }
+
+    public void pushBackKey(Compositekey key) throws InvalidAttributesException{
+        keys.pushBack(key);
+    }
+
+    public void pushBackValue(Compositekey value) throws InvalidAttributesException{
+        values.pushBack(value);
+    }
     // Getters and Setters
 
     public long getNextLeafNode() {

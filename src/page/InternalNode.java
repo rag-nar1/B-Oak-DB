@@ -95,6 +95,24 @@ public class InternalNode extends TreeNodeHeader {
         return true;
     }
 
+    public void delete(int index) throws InvalidAttributesException {
+        keys.delete(index);
+        values.delete(index);
+        if (keysN > 0) {
+            keysN--;
+            writeHeader();
+        }
+    }
+
+    public void deleteRespective(int index) throws InvalidAttributesException {
+        keys.delete(index);
+        values.delete(index - 1);
+        if (keysN > 0) {
+            keysN--;
+            writeHeader();
+        }
+    }
+
     public WriteGuard split(BufferPool bufferPool, String fileName) {
         if (keysN < minKeysN) {
             return null;

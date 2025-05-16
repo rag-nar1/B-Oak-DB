@@ -63,6 +63,14 @@ public class Array {
         set(i, value);
     }
 
+    public void pushBack(Compositekey value) throws InvalidAttributesException {
+        if (length + 1 > capacity)
+            throw new ArrayIndexOutOfBoundsException("Array is full");
+        
+        set(length, value);
+        length ++;
+    }
+
     public void delete(int index) throws InvalidAttributesException {
         checkIndex(index);
         for (int i = index; i < length - 1; i ++) {
