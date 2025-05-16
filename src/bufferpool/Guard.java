@@ -2,29 +2,27 @@ package bufferpool;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.locks.Lock;
-/**
- * to access the data of a frame writing or reading in throw this
- */
-public class Guard{
 
-    protected int frameId;
-    protected Frame frame;
-    protected Replacer replacer;
-    protected Lock bpmLatch;
+/** to access the data of a frame writing or reading in throw this */
+public class Guard {
 
-    public Guard(int frameId, Frame frame, Replacer replacer, Lock bpmLatch) {
-        this.frameId = frameId; 
-        this.frame = frame; 
-        this.replacer = replacer; 
-        this.bpmLatch = bpmLatch;
-    }
+  protected int frameId;
+  protected Frame frame;
+  protected Replacer replacer;
+  protected Lock bpmLatch;
 
-    public ByteBuffer getData() {
-        return ByteBuffer.wrap(frame.getData()).asReadOnlyBuffer();
-    }
+  public Guard(int frameId, Frame frame, Replacer replacer, Lock bpmLatch) {
+    this.frameId = frameId;
+    this.frame = frame;
+    this.replacer = replacer;
+    this.bpmLatch = bpmLatch;
+  }
 
-    public int getFrameId() {
-        return frameId;
-    }
+  public ByteBuffer getData() {
+    return ByteBuffer.wrap(frame.getData()).asReadOnlyBuffer();
+  }
+
+  public int getFrameId() {
+    return frameId;
+  }
 }
-

@@ -1,101 +1,103 @@
 package bufferpool;
 
+import globals.Globals;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import globals.Globals;
+
 public class Frame {
 
-    private int frameId;
-    private long pageId;
-    private String fileName;
-    private boolean dirty;
-    private byte[] data;
-    private AtomicInteger pinCount;
-    private ReadWriteLock latch;
+  private int frameId;
+  private long pageId;
+  private String fileName;
+  private boolean dirty;
+  private byte[] data;
+  private AtomicInteger pinCount;
+  private ReadWriteLock latch;
 
-    public Frame(){}
-    public Frame(int frameId){
-        this.frameId = frameId;
-        this.data = new byte[Globals.PAGE_SIZE];
-        pinCount = new AtomicInteger();
-        latch = new ReentrantReadWriteLock(true);
-    }
-    
-    public Frame(int frameId, int pageId, String fileName) {
-        this.frameId = frameId;
-        this.pageId = pageId;
-        this.fileName = fileName;
-        this.data = new byte[Globals.PAGE_SIZE];
-        pinCount = new AtomicInteger();
-        latch = new ReentrantReadWriteLock(true);
-    }
+  public Frame() {}
 
-    public void newFrame(long pageId, String fileName) {
-        dirty = false;
-        this.pageId = pageId;
-        this.fileName = fileName;
-        pinCount = new AtomicInteger();
-    }
+  public Frame(int frameId) {
+    this.frameId = frameId;
+    this.data = new byte[Globals.PAGE_SIZE];
+    pinCount = new AtomicInteger();
+    latch = new ReentrantReadWriteLock(true);
+  }
 
-    public String getFileName() {
-        return fileName;
-    }
+  public Frame(int frameId, int pageId, String fileName) {
+    this.frameId = frameId;
+    this.pageId = pageId;
+    this.fileName = fileName;
+    this.data = new byte[Globals.PAGE_SIZE];
+    pinCount = new AtomicInteger();
+    latch = new ReentrantReadWriteLock(true);
+  }
 
-    public long getPageId() {
-        return pageId;
-    }
+  public void newFrame(long pageId, String fileName) {
+    dirty = false;
+    this.pageId = pageId;
+    this.fileName = fileName;
+    pinCount = new AtomicInteger();
+  }
 
-    public byte[] getData() {
-        return data;
-    }
+  public String getFileName() {
+    return fileName;
+  }
 
-    public boolean isDirty() {
-        return dirty;
-    }
+  public long getPageId() {
+    return pageId;
+  }
 
-    public int getFrameId() {
-        return frameId;
-    }
+  public byte[] getData() {
+    return data;
+  }
 
-    public int addPin() {
-        return pinCount.incrementAndGet();
-    }
-    
-    public int removePin() {
-        return pinCount.decrementAndGet();
-    }
-    
-    public int getPinCount() {
-        return pinCount.get();
-    }
-    
-    public void setDirty(boolean dirty) {
-        this.dirty = dirty;
-    }
-    
-    public boolean lockRead() {
-        try {
-            return latch.readLock().tryLock(10, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            return false;
-        }
-    }
+  public boolean isDirty() {
+    return dirty;
+  }
 
-    public boolean lockWrite() {
-        try {
-            return latch.writeLock().tryLock(50, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            return false;
-        }
-    }
+  public int getFrameId() {
+    return frameId;
+  }
 
-    public void unlockRead() {
-        latch.readLock().unlock();
-    }
+  public int addPin() {
+    return pinCount.incrementAndGet();
+  }
 
-    public void unlockWrite() {
-        latch.writeLock().unlock();
+  public int removePin() {
+    return pinCount.decrementAndGet();
+  }
+
+  public int getPinCount() {
+    return pinCount.get();
+  }
+
+  public void setDirty(boolean dirty) {
+    this.dirty = dirty;
+  }
+
+  public boolean lockRead() {
+    try {
+      return latch.readLock().tryLock(10, TimeUnit.MILLISECONDS);
+    } catch (Exception e) {
+      return false;
     }
+  }
+
+  public boolean lockWrite() {
+    try {
+      return latch.writeLock().tryLock(50, TimeUnit.MILLISECONDS);
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  public void unlockRead() {
+    latch.readLock().unlock();
+  }
+
+  public void unlockWrite() {
+    latch.writeLock().unlock();
+  }
 }
