@@ -222,6 +222,7 @@ public class LeafNode extends TreeNodeHeader {
           for (int i = 0; i < getKeysN(); i++) {
             leftNode.pushBack(getKey(i), getValue(i));
           }
+          leftNode.setNextLeafNode(getNextLeafNode());
           // delete the page
           bufferPool.deletePage(fileName, getPageId());
           // update the parent
@@ -248,7 +249,7 @@ public class LeafNode extends TreeNodeHeader {
         for (int i = 0; i < rightNode.getKeysN(); i++) {
           pushBack(rightNode.getKey(i), rightNode.getValue(i));
         }
-
+        setNextLeafNode(rightNode.getNextLeafNode());
         // delete the page
         bufferPool.deletePage(fileName, rightNode.getPageId());
         // update the parent
