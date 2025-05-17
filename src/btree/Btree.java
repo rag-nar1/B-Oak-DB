@@ -153,7 +153,8 @@ public class Btree implements Index {
         if (lvl == header.getHeight()) { // we are at the leaf node level
           ctx.addWriteGuard(currentGuard);
           LeafNode currentNode = new LeafNode(keyType, valueType, currentGuard.getDataMut());
-          if (currentNode.insert(key, value) != 0) { // if there is space in the node insert and we are done
+          if (currentNode.insert(key, value)
+              != 0) { // if there is space in the node insert and we are done
             // we need to check if the node is full we can redistribute only if we are not
             // at the root
             if (currentNode.getKeysN() < currentNode.getMaxKeysN() || lvl == 1) {
@@ -710,7 +711,7 @@ public class Btree implements Index {
         WriteGuard guard = writeGuards.pop();
         guard.close();
       }
-      
+
       dropHeaderReadGuard();
       while (!readGuards.isEmpty()) {
         ReadGuard guard = readGuards.pop();

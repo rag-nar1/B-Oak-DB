@@ -298,18 +298,19 @@ public class BtreeTest {
       int op = 10000;
       for (int i = 0; i < writersCnt; i++) {
         final int end = op * i;
-        Thread writer = new Thread(
-            () -> {
-              for (int key = end - op; key < end; key++) {
-                try {
-                  btree.insert(
-                      makeCompositekey(key, keyType), makeCompositekey(key, valueType));
-                } catch (Exception e) {
-                  e.printStackTrace();
-                  fail();
-                }
-              }
-            });
+        Thread writer =
+            new Thread(
+                () -> {
+                  for (int key = end - op; key < end; key++) {
+                    try {
+                      btree.insert(
+                          makeCompositekey(key, keyType), makeCompositekey(key, valueType));
+                    } catch (Exception e) {
+                      e.printStackTrace();
+                      fail();
+                    }
+                  }
+                });
         threads.add(writer);
       }
 
@@ -324,22 +325,23 @@ public class BtreeTest {
 
       for (int i = 0; i < readersCnt; i++) {
         final int end = op * i;
-        Thread reader = new Thread(
-            () -> {
-              for (int key = end - op; key < end; key++) {
-                try {
-                  Compositekey result = btree.get(makeCompositekey(key, keyType));
-                  assertEquals(
-                      "Search operation failed",
-                      0,
-                      result.compareTo(makeCompositekey(key, valueType)));
-                } catch (Exception e) {
-                  System.out.println("thread " + end / op + ": expected ->" + key);
-                  e.printStackTrace();
-                  fail();
-                }
-              }
-            });
+        Thread reader =
+            new Thread(
+                () -> {
+                  for (int key = end - op; key < end; key++) {
+                    try {
+                      Compositekey result = btree.get(makeCompositekey(key, keyType));
+                      assertEquals(
+                          "Search operation failed",
+                          0,
+                          result.compareTo(makeCompositekey(key, valueType)));
+                    } catch (Exception e) {
+                      System.out.println("thread " + end / op + ": expected ->" + key);
+                      e.printStackTrace();
+                      fail();
+                    }
+                  }
+                });
         threads.add(reader);
       }
 
@@ -371,18 +373,19 @@ public class BtreeTest {
       int op = 10000;
       for (int i = 0; i < writersCnt; i++) {
         final int end = op * i;
-        Thread writer = new Thread(
-            () -> {
-              for (int key = end - op; key < end; key++) {
-                try {
-                  btree.insert(
-                      makeCompositekey(key, keyType), makeCompositekey(key, valueType));
-                } catch (Exception e) {
-                  e.printStackTrace();
-                  fail();
-                }
-              }
-            });
+        Thread writer =
+            new Thread(
+                () -> {
+                  for (int key = end - op; key < end; key++) {
+                    try {
+                      btree.insert(
+                          makeCompositekey(key, keyType), makeCompositekey(key, valueType));
+                    } catch (Exception e) {
+                      e.printStackTrace();
+                      fail();
+                    }
+                  }
+                });
         threads.add(writer);
       }
 
@@ -398,22 +401,23 @@ public class BtreeTest {
 
       for (int i = 0; i < readersCnt; i++) {
         final int end = op * i;
-        Thread reader = new Thread(
-            () -> {
-              for (int key = end - op; key < end; key++) {
-                try {
-                  Compositekey result = btree.get(makeCompositekey(key, keyType));
-                  assertEquals(
-                      "Search operation failed",
-                      0,
-                      result.compareTo(makeCompositekey(key, valueType)));
-                } catch (Exception e) {
-                  System.out.println("thread " + end / op + ": expected ->" + key);
-                  e.printStackTrace();
-                  fail();
-                }
-              }
-            });
+        Thread reader =
+            new Thread(
+                () -> {
+                  for (int key = end - op; key < end; key++) {
+                    try {
+                      Compositekey result = btree.get(makeCompositekey(key, keyType));
+                      assertEquals(
+                          "Search operation failed",
+                          0,
+                          result.compareTo(makeCompositekey(key, valueType)));
+                    } catch (Exception e) {
+                      System.out.println("thread " + end / op + ": expected ->" + key);
+                      e.printStackTrace();
+                      fail();
+                    }
+                  }
+                });
         threads.add(reader);
       }
 
@@ -469,9 +473,7 @@ public class BtreeTest {
           Compositekey result = btree.get(makeCompositekey(i, keyType));
           assertNotNull(result);
           assertEquals(
-              "Search operation failed",
-              0,
-              result.compareTo(makeCompositekey(i, valueType)));
+              "Search operation failed", 0, result.compareTo(makeCompositekey(i, valueType)));
         } catch (Exception e) {
           System.out.println("expected -> " + i + "\n");
           e.printStackTrace();
@@ -516,34 +518,36 @@ public class BtreeTest {
       int op = 10000;
       for (int i = 0; i < writersCnt; i++) {
         final int end = op * (i + 1);
-        Thread writer = new Thread(
-            () -> {
-              for (int key = end - op; key < end; key++) {
-                try {
-                  btree.insert(
-                      makeCompositekey(key, keyType), makeCompositekey(key, valueType));
-                } catch (Exception e) {
-                  e.printStackTrace();
-                  fail();
-                }
-              }
-            });
+        Thread writer =
+            new Thread(
+                () -> {
+                  for (int key = end - op; key < end; key++) {
+                    try {
+                      btree.insert(
+                          makeCompositekey(key, keyType), makeCompositekey(key, valueType));
+                    } catch (Exception e) {
+                      e.printStackTrace();
+                      fail();
+                    }
+                  }
+                });
         threads.add(writer);
       }
 
-      for (int i = 0; i < DeleterCnt; i+=2) {
+      for (int i = 0; i < DeleterCnt; i += 2) {
         final int end = op * i;
-        Thread writer = new Thread(
-            () -> {
-              for (int key = end - op; key < end; key++) {
-                try {
-                  btree.delete(makeCompositekey(key, keyType));
-                } catch (Exception e) {
-                  e.printStackTrace();
-                  fail();
-                }
-              }
-            });
+        Thread writer =
+            new Thread(
+                () -> {
+                  for (int key = end - op; key < end; key++) {
+                    try {
+                      btree.delete(makeCompositekey(key, keyType));
+                    } catch (Exception e) {
+                      e.printStackTrace();
+                      fail();
+                    }
+                  }
+                });
         threads.add(writer);
       }
 
