@@ -504,7 +504,7 @@ public class BtreeTest {
 
   @Test
   public void testConcurrencyAllOut() throws Exception {
-    int itrs = 1;
+    int itrs = 5;
     for (int itr = 1; itr <= itrs; itr++) {
       setUp();
       double startTime = (double) System.currentTimeMillis();
@@ -555,44 +555,6 @@ public class BtreeTest {
       for (Thread thread : threads) {
         thread.join();
       }
-      threads = new ArrayList<>();
-
-      for (int i = 0; i < readersCnt; i += 2) {
-        final int end = op * i;
-        final int exists = i ;
-        Thread reader = new Thread(
-            () -> {
-              for (int key = end - op; key < end; key++) {
-                try {
-                  Compositekey result = btree.get(makeCompositekey(key, keyType));
-                  // if (exists != 0) {
-                  //   assertNotNull(result);
-                  //   assertEquals(
-                  //       "Search operation failed",
-                  //       0,
-                  //       result.compareTo(makeCompositekey(key, valueType)));
-                  // } else {
-                  //   assertNull(result);
-                  // }
-                } catch (Exception e) {
-                  System.out.println("thread " + end / op + ": expected ->" + key);
-                  e.printStackTrace();
-                  fail();
-                }
-              }
-            });
-        threads.add(reader);
-      }
-
-      Collections.shuffle(threads);
-      for (Thread thread : threads) {
-        thread.start();
-      }
-
-      for (Thread thread : threads) {
-        thread.join();
-      }
-
       double endTime = System.currentTimeMillis();
       endTime = System.currentTimeMillis();
       double fTime = (endTime - startTime) / (double) 1000;

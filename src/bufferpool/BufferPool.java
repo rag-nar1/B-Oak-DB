@@ -350,5 +350,6 @@ public class BufferPool implements Closeable {
     }
 
     fileFreePages.add(pageId);
+    bpmLatch.unlock();
   }
 }
