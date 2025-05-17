@@ -11,7 +11,6 @@ public class Array {
   private final int offsetBytes;
   private final ByteBuffer buf;
   private final Template template;
-  private final Compositekey keyUtil;
 
   public Array(Template template, byte[] data, int offsetBytes, int length, int capacity) {
     this.buf = ByteBuffer.wrap(data);
@@ -19,7 +18,6 @@ public class Array {
     this.length = length;
     this.capacity = capacity;
     this.template = template;
-    this.keyUtil = new Compositekey(template);
   }
 
   public Array(Template template, ByteBuffer data, int offsetBytes, int length, int capacity) {
@@ -28,7 +26,6 @@ public class Array {
     this.length = length;
     this.capacity = capacity;
     this.template = template;
-    this.keyUtil = new Compositekey(template);
   }
 
   public int length() {
@@ -39,6 +36,7 @@ public class Array {
   public Compositekey get(int i) throws InvalidAttributesException {
     checkIndex(i);
     buf.position(offsetBytes + i * template.getByteSize());
+    Compositekey keyUtil = new Compositekey(template);
     return keyUtil.read(buf);
   }
 

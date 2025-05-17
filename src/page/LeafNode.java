@@ -117,6 +117,9 @@ public class LeafNode extends TreeNodeHeader {
   }
 
   public boolean delete(Compositekey key) throws InvalidAttributesException {
+    if (keysN == 0) {
+      return false;
+    }
     int index = keys.binarySearch(key);
     if (index != -1) {
       delete(index);

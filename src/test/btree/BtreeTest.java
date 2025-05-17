@@ -509,13 +509,13 @@ public class BtreeTest {
       setUp();
       double startTime = (double) System.currentTimeMillis();
 
-      int writersCnt = 100;
-      int DeleterCnt = 50;
+      int writersCnt = 200;
+      int DeleterCnt = 100;
       int readersCnt = 0;
       List<Thread> threads = new ArrayList<>();
       int op = 10000;
       for (int i = 0; i < writersCnt; i++) {
-        final int end = op * i;
+        final int end = op * (i + 1);
         Thread writer = new Thread(
             () -> {
               for (int key = end - op; key < end; key++) {
