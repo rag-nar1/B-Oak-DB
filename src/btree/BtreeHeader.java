@@ -1,76 +1,76 @@
 package btree;
 
+import globals.Globals;
 import java.nio.ByteBuffer;
 
-import globals.Globals;
-
 public class BtreeHeader {
-    private long pageId;
-    private long rootPageId;
-    private short height;
-    ByteBuffer buffer;
-    public BtreeHeader() {
-        this.pageId = -1;
-        this.rootPageId = -1;
-        this.height = 0;
-    }
+  private long pageId;
+  private long rootPageId;
+  private short height;
+  ByteBuffer buffer;
 
-    public BtreeHeader(long pageId, long rootPageId, short height) {
-        this.pageId = pageId;
-        this.rootPageId = rootPageId;
-        this.height = height;
-        writeHeader();
-    }
+  public BtreeHeader() {
+    this.pageId = -1;
+    this.rootPageId = -1;
+    this.height = 0;
+  }
 
-    public BtreeHeader(byte[] rowData) {
-        buffer = ByteBuffer.wrap(rowData);
-        this.pageId = buffer.getLong();
-        this.rootPageId = buffer.getLong();
-        this.height = buffer.getShort();
-    }
+  public BtreeHeader(long pageId, long rootPageId, short height) {
+    this.pageId = pageId;
+    this.rootPageId = rootPageId;
+    this.height = height;
+    writeHeader();
+  }
 
-    public BtreeHeader(ByteBuffer data) {
-        buffer = data;
-        this.pageId = buffer.getLong();
-        this.rootPageId = buffer.getLong();
-        this.height = buffer.getShort();
-    }
+  public BtreeHeader(byte[] rowData) {
+    buffer = ByteBuffer.wrap(rowData);
+    this.pageId = buffer.getLong();
+    this.rootPageId = buffer.getLong();
+    this.height = buffer.getShort();
+  }
 
-    public void writeHeader() {
-        buffer.rewind();
-        buffer.putLong(pageId);
-        buffer.putLong(rootPageId);
-        buffer.putShort(height);
-    }
+  public BtreeHeader(ByteBuffer data) {
+    buffer = data;
+    this.pageId = buffer.getLong();
+    this.rootPageId = buffer.getLong();
+    this.height = buffer.getShort();
+  }
 
-    public long getPageId() {
-        return pageId;
-    }
+  public void writeHeader() {
+    buffer.rewind();
+    buffer.putLong(pageId);
+    buffer.putLong(rootPageId);
+    buffer.putShort(height);
+  }
 
-    public void setPageId(long pageId) {
-        this.pageId = pageId;
-        writeHeader();
-    }
+  public long getPageId() {
+    return pageId;
+  }
 
-    public long getRootPageId() {
-        return rootPageId;
-    }
+  public void setPageId(long pageId) {
+    this.pageId = pageId;
+    writeHeader();
+  }
 
-    public void setRootPageId(long rootPageId) {
-        this.rootPageId = rootPageId;
-        writeHeader();
-    }
+  public long getRootPageId() {
+    return rootPageId;
+  }
 
-    public short getHeight() {
-        return height;
-    }
+  public void setRootPageId(long rootPageId) {
+    this.rootPageId = rootPageId;
+    writeHeader();
+  }
 
-    public void setHeight(short height) {
-        this.height = height;
-        writeHeader();
-    }
+  public short getHeight() {
+    return height;
+  }
 
-    public boolean isEmpty() {
-        return pageId == Globals.INVALID_PAGE_ID;
-    }
+  public void setHeight(short height) {
+    this.height = height;
+    writeHeader();
+  }
+
+  public boolean isEmpty() {
+    return pageId == Globals.INVALID_PAGE_ID;
+  }
 }
