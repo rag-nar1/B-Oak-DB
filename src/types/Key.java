@@ -1,6 +1,7 @@
 package types;
 
 import java.nio.ByteBuffer;
+import java.lang.NullPointerException;
 
 // types and interfaces
 public class Key {
@@ -36,6 +37,9 @@ public class Key {
 
   @SuppressWarnings("unchecked")
   public <T extends Comparable<T>> T getVal() {
+    if (val == null) {
+      throw new NullPointerException();
+    }
     ByteBuffer buffer = ByteBuffer.wrap(val);
     if (type == Integer.class) {
       return (T) Integer.valueOf(buffer.getInt());
