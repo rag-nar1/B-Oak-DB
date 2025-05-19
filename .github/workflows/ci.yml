@@ -30,5 +30,11 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-maven-
 
+    - name: Ensure storage directory exists
+      run: mkdir -p storage
+
     - name: Build and test with Maven
       run: mvn clean verify
+
+    - name: Clean up storage directory
+      run: rm -rf storage
