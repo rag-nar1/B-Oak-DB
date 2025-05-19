@@ -19,7 +19,7 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v3
       with:
-        java-version: '17'        # Or 11, 21, etc.
+        java-version: '21'        # Or 11, 21, etc.
         distribution: 'temurin'   # Recommended distribution
 
     - name: Cache Maven packages
