@@ -24,7 +24,7 @@ public class BtreeBenchmark {
   private static final int MAX_PAGES = 4000; // Example max pages
   private static final int K = 30;
   private static final String btreeFilePath = "test.btree"; // Example file path for the B-tree
-  private static final int ITERATIONS = 5;
+  private static final int ITERATIONS = 1;
   Template keyType;
   Template valueType;
 
@@ -85,34 +85,6 @@ public class BtreeBenchmark {
       List<Thread> threads = new ArrayList<>();
       int op = 10000;
 
-      // Insert operations
-      // for (int i = 0; i < writersCnt; i++) {
-      //     final int end = op * (i + 1);
-      //     Thread writer = new Thread(() -> {
-      //         for (int key = end - op; key < end; key++) {
-      //             try {
-      //                 // long insertStartTime = System.currentTimeMillis();
-      //                 btree.insert(makeCompositekey(key, keysnumber - key, keyType),
-      //                         makeCompositekey(key, valueType));
-      //                 // long insertEndTime = System.currentTimeMillis();
-      //                 // insertTimes[key] = (insertEndTime - insertStartTime);
-      //             } catch (Exception e) {
-      //                 e.printStackTrace();
-      //                 fail();
-      //             }
-      //         }
-      //     });
-      //     threads.add(writer);
-      // }
-
-      // Collections.shuffle(threads);
-      // for (Thread thread : threads) {
-      //     thread.start();
-      // }
-
-      // for (Thread thread : threads) {
-      //     thread.join();
-      // }
 
       double[] insertTimes = new double[2 * keysnumber];
       double[] searchTimes = new double[keysnumber];

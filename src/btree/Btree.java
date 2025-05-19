@@ -33,17 +33,7 @@ public class Btree implements Index {
     this.bufferPool = bufferPool;
 
     // read the header page
-    if (headerPageId != Globals.INVALID_PAGE_ID) {
-      try {
-        WriteGuard guard = bufferPool.getWriteGuard(fileName, headerPageId);
-        BtreeHeader header = new BtreeHeader(guard.getData());
-        header.setRootPageId(Globals.INVALID_PAGE_ID);
-        header.setHeight((short) 0);
-        guard.close();
-      } catch (Exception e) {
-        throw new RuntimeException("Error reading header page", e);
-      }
-    } else {
+    if (headerPageId == Globals.INVALID_PAGE_ID) {
       // create a new header page
       try {
         this.headerPageId = bufferPool.allocateNewPage(fileName);
