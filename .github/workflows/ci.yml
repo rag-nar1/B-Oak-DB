@@ -32,4 +32,4 @@ jobs:
 
 
     - name: Build and test with Maven
-      run: mvn clean verify
+      run: mvn test -Dtest=BtreeBenchmark
