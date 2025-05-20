@@ -4,6 +4,8 @@ import bufferpool.BufferPool;
 import bufferpool.ReadGuard;
 import bufferpool.WriteGuard;
 import globals.Globals;
+import indexmanager.Index;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Deque;

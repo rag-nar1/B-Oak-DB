@@ -1,4 +1,4 @@
-package btree;
+package indexmanager;
 
 import types.Compositekey;
 
