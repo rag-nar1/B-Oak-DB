@@ -1,7 +1,6 @@
 package types;
 
 import java.nio.ByteBuffer;
-import java.lang.NullPointerException;
 
 // types and interfaces
 public class Key {

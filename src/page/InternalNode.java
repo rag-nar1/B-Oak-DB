@@ -11,18 +11,15 @@ import types.Compositekey;
 import types.Template;
 
 /**
- * InternalNode class represents an internal node in a B+ tree. It extends the
- * TreeNode class and is
- * used to store keys and child pointers. The keys are used to navigate the
- * tree, while the child
- * pointers are pageIds that point to the child nodes. | null |key2 |key3
- * |...|keyN |
- * |pageId1|pageId2|pageId3|...|pageIdN| pageId_i points to the subtree where
- * keys there sutisfy
+ * InternalNode class represents an internal node in a B+ tree. It extends the TreeNode class and is
+ * used to store keys and child pointers. The keys are used to navigate the tree, while the child
+ * pointers are pageIds that point to the child nodes. | null |key2 |key3 |...|keyN |
+ * |pageId1|pageId2|pageId3|...|pageIdN| pageId_i points to the subtree where keys there sutisfy
  * key_i <= key < key_(i+1) for i = 0, key_0 = -inf for i = N, key_N = +inf
  */
 public class InternalNode extends TreeNodeHeader {
-  private final short headerSize = 2 + 1 + 8; // 2 bytes for keysN, 1 byte for type, 8 bytes for pageId
+  private final short headerSize =
+      2 + 1 + 8; // 2 bytes for keysN, 1 byte for type, 8 bytes for pageId
   private final Template keyType;
   private final Template valueType;
   private final short keySize;
@@ -57,8 +54,9 @@ public class InternalNode extends TreeNodeHeader {
     this.pageId = buffer.getLong();
 
     keys = new CompareableArray(new Compositekey(keyType), rawData, headerSize, keysN, maxKeysN);
-    values = new Array(
-        new Compositekey(valueType), rawData, headerSize + maxKeysN * keySize, keysN, maxKeysN);
+    values =
+        new Array(
+            new Compositekey(valueType), rawData, headerSize + maxKeysN * keySize, keysN, maxKeysN);
   }
 
   public InternalNode(Template keyType, byte[] rawData) {
@@ -146,7 +144,8 @@ public class InternalNode extends TreeNodeHeader {
   public boolean redistribute(
       String fileName, int index, InternalNode parent, BufferPool bufferPool) throws Exception {
     if (index > 1) {
-      WriteGuard leftGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index - 2).<Long>getVal(0));
+      WriteGuard leftGuard =
+          bufferPool.getWriteGuard(fileName, parent.getValue(index - 2).<Long>getVal(0));
       if (leftGuard != null) {
         InternalNode leftNode = new InternalNode(keyType, leftGuard.getDataMut());
         if (leftNode.getKeysN() > leftNode.getMinKeysN()) { // can redistribute
@@ -168,7 +167,8 @@ public class InternalNode extends TreeNodeHeader {
 
     // try to redistribute with the right sibling
     if (index < parent.getKeysN()) {
-      WriteGuard rightGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index).<Long>getVal(0));
+      WriteGuard rightGuard =
+          bufferPool.getWriteGuard(fileName, parent.getValue(index).<Long>getVal(0));
       if (rightGuard == null) {
         return false;
       }
@@ -195,7 +195,8 @@ public class InternalNode extends TreeNodeHeader {
   public boolean merge(String fileName, int index, InternalNode parent, BufferPool bufferPool)
       throws Exception {
     if (index > 1) {
-      WriteGuard leftGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index - 2).<Long>getVal(0));
+      WriteGuard leftGuard =
+          bufferPool.getWriteGuard(fileName, parent.getValue(index - 2).<Long>getVal(0));
       if (leftGuard != null) {
         InternalNode leftNode = new InternalNode(keyType, leftGuard.getDataMut());
         if (leftNode.getKeysN() + getKeysN() <= leftNode.getMaxKeysN()) { // can merge
@@ -220,7 +221,8 @@ public class InternalNode extends TreeNodeHeader {
 
     // try to merge with the right sibling
     if (index < parent.getKeysN()) {
-      WriteGuard rightGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index).<Long>getVal(0));
+      WriteGuard rightGuard =
+          bufferPool.getWriteGuard(fileName, parent.getValue(index).<Long>getVal(0));
       if (rightGuard == null) {
         return false;
       }
