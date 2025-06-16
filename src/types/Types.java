@@ -8,7 +8,7 @@ public class Types {
   public static final short SHORT_SIZE = 2;
   public static final short BYTE_SIZE = 1;
   public static final short FLOAT_SIZE = 4;
-
+  public static final short JSON_SIZE = 2 * 1024; // 2KB
   // Add more types as needed
 
   public static short getSize(Class<?> type) {
@@ -24,6 +24,8 @@ public class Types {
       return BYTE_SIZE;
     } else if (type == Float.class) {
       return FLOAT_SIZE;
+    } else if (type == Json.class) {
+      return JSON_SIZE;
     }
     // Add more types as needed
     throw new IllegalArgumentException("Unsupported type: " + type.getName());

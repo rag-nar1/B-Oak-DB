@@ -39,6 +39,8 @@ public class Template {
       return Byte.BYTES;
     } else if (type == Float.class) {
       return Float.BYTES;
+    } else if (type == Json.class) {
+      return Types.JSON_SIZE;
     }
     throw new IllegalArgumentException("Unsupported type: " + type.getName());
   }
@@ -56,6 +58,8 @@ public class Template {
       return Byte.BYTES;
     } else if (type == Float.class) {
       return Float.BYTES;
+    } else if (type == Json.class) {
+      return Types.JSON_SIZE;
     }
     throw new IllegalArgumentException("Unsupported type: " + type.getName());
   }

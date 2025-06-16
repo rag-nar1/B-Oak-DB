@@ -72,7 +72,6 @@ public class BtreeBenchmark {
     return key;
   }
 
-
   private Compositekey makeCompositekey(int val, Template type) {
     Compositekey key = new Compositekey(type);
     key.set(0, val, Integer.class);
@@ -97,7 +96,6 @@ public class BtreeBenchmark {
       int readersCnt = 200;
       List<Thread> threads = new ArrayList<>();
       int op = 10000;
-
 
       double[] insertTimes = new double[2 * keysnumber];
       double[] searchTimes = new double[keysnumber];
@@ -568,7 +566,6 @@ public class BtreeBenchmark {
     System.out.println("└───────────────────────────────────────────────────────────");
   }
 
-
   @Test
   public void testBtreeBenchmark4() throws Exception {
     int keysnumber = 2_000_000;
@@ -588,7 +585,6 @@ public class BtreeBenchmark {
       List<Thread> threads = new ArrayList<>();
       int op = 10000;
 
-
       double[] insertTimes = new double[2 * keysnumber];
       double[] searchTimes = new double[keysnumber];
 
@@ -605,8 +601,7 @@ public class BtreeBenchmark {
                     try {
                       long insertStartTime = System.currentTimeMillis();
                       btree.insert(
-                          makeCompositekey(key, keyType),
-                          makeCompositekey(key, valueType));
+                          makeCompositekey(key, keyType), makeCompositekey(key, valueType));
                       long insertEndTime = System.currentTimeMillis();
                       insertTimes[key] = (insertEndTime - insertStartTime);
                     } catch (Exception e) {
@@ -644,8 +639,7 @@ public class BtreeBenchmark {
                   for (int key = end - op; key < end; key++) {
                     try {
                       long searchStartTime = System.currentTimeMillis();
-                      Compositekey val =
-                          btree.get(makeCompositekey(key, keyType));
+                      Compositekey val = btree.get(makeCompositekey(key, keyType));
                       long searchEndTime = System.currentTimeMillis();
                       searchTimes[key] = (searchEndTime - searchStartTime);
                       // assertEquals(0, val.compareTo(makeCompositekey(key, valueType)));
@@ -718,5 +712,4 @@ public class BtreeBenchmark {
         Arrays.stream(overallThroughputs).average().getAsDouble());
     System.out.println("└───────────────────────────────────────────────────────────");
   }
-
 }

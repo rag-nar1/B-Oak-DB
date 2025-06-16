@@ -11,34 +11,24 @@ import types.Compositekey;
 import types.Template;
 
 /**
- * LeafNode class represents a leaf node in a B+ tree. It extends the TreeNode
- * class and is used to
- * store keys and values. The keys are used to get the corresponding values
- * (document in the primary
- * index, primary key in the secondary index). The leaf node is the last level
- * of the B+ tree, where
- * the actual data is stored in the cluster index. The leaf node contains a
- * pointer to the next leaf
- * node, which is used for sequential access. The last pageId points to the next
- * leaf node. | key1
+ * LeafNode class represents a leaf node in a B+ tree. It extends the TreeNode class and is used to
+ * store keys and values. The keys are used to get the corresponding values (document in the primary
+ * index, primary key in the secondary index). The leaf node is the last level of the B+ tree, where
+ * the actual data is stored in the cluster index. The leaf node contains a pointer to the next leaf
+ * node, which is used for sequential access. The last pageId points to the next leaf node. | key1
  * |key2 |key3 |...|keyN | |value1 |value2 |value3 |...|valueN |
  *
- * <p>
- * the header is 2 bytes for the number of keys 1 byte for the type of the node
- * -> 00000001 for
- * leaf node , 00000000 for internal node 8 bytes for the pageId 8 bytes for the
- * next leaf node the
- * rest is the keys and values The keys are stored in the first part of the
- * page, and the values are
- * stored in the second part. | 2bytes | 1byte | 8 bytes | 8 bytes | keys... |
- * values... | | KeysN |
- * Type | pageId |nextLeafNode| key1 | key2 | ... | keyN | value1 | value2 | ...
- * | valueN |
+ * <p>the header is 2 bytes for the number of keys 1 byte for the type of the node -> 00000001 for
+ * leaf node , 00000000 for internal node 8 bytes for the pageId 8 bytes for the next leaf node the
+ * rest is the keys and values The keys are stored in the first part of the page, and the values are
+ * stored in the second part. | 2bytes | 1byte | 8 bytes | 8 bytes | keys... | values... | | KeysN |
+ * Type | pageId |nextLeafNode| key1 | key2 | ... | keyN | value1 | value2 | ... | valueN |
  */
 public class LeafNode extends TreeNodeHeader {
   // The next leaf node in the linked list
   private long nextLeafNode; // this is the next 8 bytes of the header
-  private final short headerSize = 2 + 1 + 8 + 8; // 2 bytes for keysN, 2 bytes for keySize, 2 bytes for valueSize, 1
+  private final short headerSize =
+      2 + 1 + 8 + 8; // 2 bytes for keysN, 2 bytes for keySize, 2 bytes for valueSize, 1
   // byte for type, 8 bytes for pageId, 8 bytes for nextLeafNode
   private final Template keyType;
   private final Template valueType;
@@ -75,8 +65,9 @@ public class LeafNode extends TreeNodeHeader {
     this.nextLeafNode = buffer.getLong();
 
     keys = new CompareableArray(new Compositekey(keyType), rawData, headerSize, keysN, maxKeysN);
-    values = new Array(
-        new Compositekey(valueType), rawData, headerSize + maxKeysN * keySize, keysN, maxKeysN);
+    values =
+        new Array(
+            new Compositekey(valueType), rawData, headerSize + maxKeysN * keySize, keysN, maxKeysN);
   }
 
   public LeafNode(Template keyType, Template valueType, byte[] rawData) {
@@ -176,7 +167,8 @@ public class LeafNode extends TreeNodeHeader {
   public boolean redistribute(
       String fileName, int index, InternalNode parent, BufferPool bufferPool) throws Exception {
     if (index > 1) {
-      WriteGuard leftGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index - 2).<Long>getVal(0));
+      WriteGuard leftGuard =
+          bufferPool.getWriteGuard(fileName, parent.getValue(index - 2).<Long>getVal(0));
       if (leftGuard != null) {
         LeafNode leftNode = new LeafNode(keyType, valueType, leftGuard.getDataMut());
         if (leftNode.getKeysN() > leftNode.getMinKeysN()) { // can redistribute
@@ -197,7 +189,8 @@ public class LeafNode extends TreeNodeHeader {
 
     // try to redistribute with the right sibling
     if (index < parent.getKeysN()) {
-      WriteGuard rightGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index).<Long>getVal(0));
+      WriteGuard rightGuard =
+          bufferPool.getWriteGuard(fileName, parent.getValue(index).<Long>getVal(0));
       if (rightGuard == null) {
         return false;
       }
@@ -224,7 +217,8 @@ public class LeafNode extends TreeNodeHeader {
   public boolean merge(String fileName, int index, InternalNode parent, BufferPool bufferPool)
       throws Exception {
     if (index > 1) {
-      WriteGuard leftGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index - 2).<Long>getVal(0));
+      WriteGuard leftGuard =
+          bufferPool.getWriteGuard(fileName, parent.getValue(index - 2).<Long>getVal(0));
       if (leftGuard != null) {
         LeafNode leftNode = new LeafNode(keyType, valueType, leftGuard.getDataMut());
         if (leftNode.getKeysN() + getKeysN() <= leftNode.getMaxKeysN()) { // can merge
@@ -247,7 +241,8 @@ public class LeafNode extends TreeNodeHeader {
 
     // try to merge with the right sibling
     if (index < parent.getKeysN()) {
-      WriteGuard rightGuard = bufferPool.getWriteGuard(fileName, parent.getValue(index).<Long>getVal(0));
+      WriteGuard rightGuard =
+          bufferPool.getWriteGuard(fileName, parent.getValue(index).<Long>getVal(0));
       if (rightGuard == null) {
         return false;
       }

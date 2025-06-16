@@ -1,7 +1,6 @@
 package types;
 
 import java.nio.ByteBuffer;
-import java.lang.NullPointerException;
 
 // types and interfaces
 public class Key {
@@ -53,6 +52,8 @@ public class Key {
       return (T) Byte.valueOf(buffer.get());
     } else if (type == Float.class) {
       return (T) Float.valueOf(buffer.getFloat());
+    } else if (type == Json.class) {
+      return (T) Json.valueOf(val)
     }
     throw new IllegalArgumentException("Unsupported type: " + type.getName());
   }
